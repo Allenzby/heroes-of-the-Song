@@ -1,0 +1,41 @@
+<!-- 浏览器标签页图标。放在 public/ 里，Vite 原样复制到 dist/ 根目录。
+     由 index.html 引用（<link rel="icon">）。
+
+     **这个文件是三个图标的源头**：favicon.png 和 apple-touch-icon.png
+     都是从它渲出来的（无头 Edge 截图，180x180）。
+     要换图标就改这里，然后重新导出那两张 PNG —— 别分头改，会各说一套。
+     apple-touch-icon 那张导出时要**去掉底板的 rx**（iOS 自己切圆角）。
+
+     用 SVG 作源：一个文件在所有尺寸下都清晰，改起来也是纯文本。
+
+     盾牌 + 蛇矛：塔防守城 + 梁山好汉的组合。
+     配色沿用游戏 UI：#0f172a 底、#67e8f9 高亮、#f59e0b 金色。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 盾牌外框 -->
+  <path d="M32 4 L56 14 L56 34 Q56 52 32 60 Q8 52 8 34 L8 14 Z"
+        fill="url(#shieldGrad)" stroke="#67e8f9" stroke-width="2.5"/>
+
+  <!-- 盾牌内边 -->
+  <path d="M32 8 L52 16 L52 33 Q52 48 32 56 Q12 48 12 33 L12 16 Z"
+        fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- 矛杆 -->
+  <rect x="30.5" y="18" width="3" height="28" rx="1.5" fill="#92400e"/>
+
+  <!-- 矛头 -->
+  <path d="M32 8 L37 20 Q32 23 27 20 Z" fill="#e2e8f0"/>
+  <path d="M32 8 L32 21" stroke="#cbd5e1" stroke-width="0.8"/>
+
+  <!-- 红缨 -->
+  <path d="M27 21 Q32 26 37 21 L36 24 Q32 28 28 24 Z" fill="#ef4444"/>
+
+  <!-- 盾牌底部尖端高光 -->
+  <path d="M32 52 L36 44 Q32 48 28 44 Z" fill="#67e8f9" fill-opacity="0.15"/>
+</svg>

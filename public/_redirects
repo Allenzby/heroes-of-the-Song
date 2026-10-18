@@ -1,0 +1,24 @@
+# Netlify 路由规则。放在 public/ 里，Vite 原样复制到 dist/ 根目录。
+# Netlify 只认根目录下的 _redirects。
+#
+# 作用：让 /auto（自动演练模式）这个网址打得开。
+# 它不是真实文件，静态托管默认会回 404。详见 部署说明.md。
+#
+# 下面两条的顺序不能反 —— 从上往下第一条匹配为准。
+
+# 带斜杠的先掰成不带斜杠的。必须是 301（真改地址栏）：
+# 资源路径是相对的，在 /auto/ 下会解析到 /auto/assets/... 这种不存在的路径。
+/auto/    /auto          301!
+
+# 200 = 重写，地址栏仍显示 /auto，内容取自 index.html。
+# 不能用 301 —— progress.js 靠读 location.pathname 判断模式，地址一变模式就没了。
+/auto     /index.html    200
+
+# /gonggao 是独立的公告管理页，它有自己的 gonggao/index.html，
+# 和上面 /auto 那种「回退到游戏首页再由 JS 判路径」的路子不是一回事。
+# 显式写一条 200 是为了**不赌** Netlify 的目录默认行为：万一它按
+# 「/gonggao 不是文件 → 回 404」处理，公告后台就直接打不开了。
+# 200 而不是 301，是因为地址栏保持 /gonggao 正是想要的样子；
+# 页面里所有资源都是 ../assets/... 的相对路径，
+# 从 /gonggao 和从 /gonggao/ 解析出去都是 /assets/...，两种地址都不会错。
+/gonggao   /gonggao/index.html   200
