@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 手机/平板适配的几个关键设置：
+           maximum-scale=1 + user-scalable=no —— 挡住双击和捏合缩放。
+             这是游戏不是文档，缩放只会把画面弄乱（点两个相邻的建塔位
+             很容易被当成双击）。
+           viewport-fit=cover —— 让 env(safe-area-inset-*) 生效，
+             HUD 才能躲开刘海屏横屏时左右两边的挖孔和圆角。 -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0,
+                   user-scalable=no, viewport-fit=cover" />
+    <title>大宋英雄传</title>
+
+    <!-- 图标文件放在 public/ 目录，Vite 会原样复制到 dist/ 根目录。
+         路径用 ./ 开头以配合 vite.config.js 里的 base: './' 设置。
+
+         三个文件都是从 public/favicon.svg 这一个源头来的
+         （PNG 是用无头 Edge 把那个 SVG 截出来的）。改图标的话
+         **改 SVG**，然后重新导出两张 PNG —— 别分别去改，会各说一套。
+
+         没有 .ico —— 现在的浏览器都认 SVG 和 PNG，多引一个不存在的
+         文件只会让控制台一直挂着个 404。
+
+         顺序有讲究：SVG 写在前面，PNG 写在后面作回退。
+         浏览器挑它认得的最后一个，认 SVG 的会用 SVG（任何尺寸都清晰），
+         不认的退回 PNG。 -->
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon.png" type="image/png" sizes="180x180" />
+
+    <!-- iOS「添加到主屏幕」的图标。**必须**是真的 PNG，iOS 不认 SVG。
+         180x180 是 iPhone 的标准尺寸（iPad 会自己缩）。
+
+         这张图和 favicon.png 不一样：它的外框是**方角**的。
+         iOS 会自己给图标切圆角，图里再自带一层圆角就是双重圆角，
+         而且圆角外面会露出一圈底色。 -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+
+    <!-- /gonggao 少了尾斜杠时会怎样？
+         Vite dev 和 preview 都开了 SPA 回退：找不到 /gonggao 这个文件，
+         就把根部的 index.html（游戏）当答案送出去 —— 于是输 /gonggao
+         直接掉进了游戏里。必须在这段**内联**修，不能放 main.js：
+         主包 1.5MB，等它解析完页面早闪出游戏了。
+         Netlify 会自己 301 到 /gonggao/，那种情况下这份 HTML 根本不会
+         被加载，这段自然不执行，所以对线上没有任何副作用。
+         location.pathname !== target 那个判断是防死循环：万一某台托管
+         连 /gonggao/ 也回退到游戏首页，就会不停地原地跳。 -->
+    <script>
+      (function () {
+        var p = location.pathname.replace(/\/+$/, '');
+        var target = p + '/';
+        if (p.slice(-8) === '/gonggao' && location.pathname !== target) {
+          location.replace(target);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <main id="app">
+      <section id="start-screen" class="screen start-screen">
+        <div class="particles">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+
+        <!-- 全屏。首页右上角单独一个 —— 手机上在标题页就想看满屏，
+             非得先点进关卡才能全屏是多余的一步。
+             .fullscreen-corner 负责定位（position: fixed，右上角），
+             三个按钮的逻辑共用 src/ui/fullscreen.js：
+             浏览器不支持全屏时会把这三个一起藏掉。 -->
+        <button type="button" class="settings-button fullscreen-trigger fullscreen-corner"
+                title="全屏" aria-label="全屏">⛶</button>
+
+        <div class="start-panel">
+          <!-- 公告条：Gist 里有公告时才由 src/ui/noticeTicker.js 翻出来。
+               HTML 里默认 hidden —— 没配置 Gist、请求失败、一个公告都没有，
+               这三件事的表现都是「页面上什么都没有」，不会出现空壳横幅。 -->
+          <div id="notice-ticker" class="notice-ticker" hidden>
+            <span class="notice-ticker__tag">公告</span>
+            <span class="notice-ticker__title"></span>
+            <span class="notice-ticker__count"></span>
+          </div>
+
+          <p class="eyebrow">水墨 · 塔防 · 策略</p>
+          <h1>大宋英雄传</h1>
+          <p>排兵布阵，守卫城池</p>
+
+          <div class="hero-showcase">
+            <div class="hero-card" style="--delay: 0">
+              <img src="./assets/art/towers/linchong_jin.png" alt="林冲" width="64" height="64" />
+              <span>林冲</span>
+            </div>
+            <div class="hero-card" style="--delay: 1">
+              <img src="./assets/art/towers/huarong_yuan_1.png" alt="花荣" width="64" height="64" />
+              <span>花荣</span>
+            </div>
+            <div class="hero-card" style="--delay: 2">
+              <img src="./assets/art/towers/wusong_jin.png" alt="武松" width="64" height="64" />
+              <span>武松</span>
+            </div>
+            <div class="hero-card" style="--delay: 3">
+              <img src="./assets/art/towers/shiqian_jin_2.png" alt="时迁" width="64" height="64" />
+              <span>时迁</span>
+            </div>
+          </div>
+
+          <div class="start-buttons">
+            <button id="start-button" type="button">选择章节</button>
+            <button id="codex-button" type="button" class="button-secondary">图鉴</button>
+          </div>
+        </div>
+        <footer class="start-footer">
+          <!-- 赞助条。放在页脚顶端、正文下方 —— 玩家看完标题正是
+               "这游戏还不错"的瞬间，比塞在角落里有效。
+               放在 footer 内而不是旁边：footer 是绝对定位的，
+               多一个兄弟节点会挤乱 .start-screen 的 grid 行。
+               链接走 <a> 而不是 <button>：是外跳，不是站内操作。
+
+               类名刻意避开赞助、广告那类英文关键词 —— 浏览器过滤插件
+               （AdGuard 等）按类名关键词做通用隐藏，一旦撞上会被精准
+               删掉一个子节点，页面看着就缺一块。 -->
+          <a class="support-bar" href="https://ifdian.net/a/Allenzby" target="_blank" rel="noopener">
+            <span class="support-icon">☕</span>
+            <span class="support-note">觉得好玩？请作者喝杯咖啡</span>
+            <span class="support-action">去爱发电 →</span>
+          </a>
+
+          <p class="footer-brand">大宋英雄传 · Heroes of the Song Dynasty</p>
+          <p class="footer-copy">© 2026 Allenzby、宿海 · 保留所有权利</p>
+          <div class="footer-links">
+            <a href="https://allenzby.netlify.app/" target="_blank" rel="noopener">个人网站</a>
+            <span class="footer-sep">·</span>
+            <a href="https://forum.aiyf.org.cn/#/project/p-2c3879" target="_blank" rel="noopener">体验营项目页</a>
+            <span class="footer-sep">·</span>
+            <a href="https://github.com/Allenzby/heroes-of-the-Song" target="_blank" rel="noopener">GitHub</a>
+            <span class="footer-sep">·</span>
+            <a href="https://ifdian.net/a/Allenzby" target="_blank" rel="noopener">爱发电</a>
+            <span class="footer-sep">·</span>
+            <a href="https://jielong.com/s/MTUwMjQ1LDMwMDIwMSwxLDE4NDU5MzkzNg==" target="_blank" rel="noopener">意见反馈</a>
+          </div>
+        </footer>
+      </section>
+
+      <div id="visitor-badge" class="visitor-badge" hidden>浏览次数：<span id="visitor-count-home">--</span></div>
+
+      <div id="codex-dialog" class="codex-dialog" hidden>
+        <div class="codex-panel">
+          <header class="codex-header">
+            <h3>图鉴</h3>
+            <button id="codex-close" type="button" class="codex-close">✕</button>
+          </header>
+          <div class="codex-tabs">
+            <button type="button" class="codex-tab is-active" data-tab="enemies">敌人</button>
+            <button type="button" class="codex-tab" data-tab="heroes">英雄</button>
+          </div>
+          <div id="codex-content" class="codex-content"></div>
+        </div>
+      </div>
+
+      <!-- 更新日志。内容由 src/ui/changelog.js 从 src/data/changelog.json 渲染，
+           数据源是 changelog.json —— 升版本时改那一份就行。 -->
+      <div id="changelog-dialog" class="codex-dialog" hidden>
+        <div class="codex-panel">
+          <header class="codex-header">
+            <h3>更新日志</h3>
+            <button id="changelog-close" type="button" class="codex-close">✕</button>
+          </header>
+          <div id="changelog-content" class="changelog-content"></div>
+        </div>
+      </div>
+
+      <section id="select-screen" class="screen select-screen" hidden>
+        <header class="select-header">
+          <button id="select-back-button" type="button" class="back-button">‹ 返回</button>
+          <h2 id="select-title">选择章节</h2>
+          <p id="select-hint" class="select-hint"></p>
+        </header>
+
+        <div class="select-actions">
+          <a href="https://jielong.com/s/MTUwMjQ1LDMwMDIwMSwxLDE4NDU5MzkzNg==" target="_blank" rel="noopener" class="settings-button settings-link">反馈</a>
+          <button id="select-transfer-button" type="button" class="settings-button">存档</button>
+          <button id="select-settings-button" type="button" class="settings-button">⚙</button>
+          <!-- 全屏。放这一排的**最后**（也就是最贴右上角的那一侧）——
+               首页那个是单独钉在右上角的，选关页这一排本身就占着那个角，
+               排末尾才能让两个界面上的 ⛶ 落在同一个位置。
+               同一个 .fullscreen-trigger，逻辑在 src/ui/fullscreen.js。 -->
+          <button type="button" class="settings-button fullscreen-trigger"
+                  title="全屏" aria-label="全屏">⛶</button>
+        </div>
+
+        <!-- 第一层：大章节轮播 -->
+        <div id="big-chapter-view" class="chapter-carousel">
+          <button id="chapter-prev" type="button" class="chapter-arrow chapter-arrow-left" aria-label="上一章">‹</button>
+          <div id="chapter-list" class="chapter-list"></div>
+          <button id="chapter-next" type="button" class="chapter-arrow chapter-arrow-right" aria-label="下一章">›</button>
+        </div>
+        <p id="chapter-counter" class="chapter-counter"></p>
+
+        <!-- 第二层：关卡列表 -->
+        <div id="level-list-view" class="level-list-view" hidden>
+          <div id="level-list" class="level-list"></div>
+        </div>
+
+        <footer class="select-footer">
+          <!-- 赞助条，位置在章节卡下方（选关页是 grid，
+               放在 footer 里才不会多占一行把卡片挤小）。 -->
+          <a class="support-bar" href="https://ifdian.net/a/Allenzby" target="_blank" rel="noopener">
+            <span class="support-icon">☕</span>
+            <span class="support-note">觉得好玩？请作者喝杯咖啡</span>
+            <span class="support-action">去爱发电 →</span>
+          </a>
+
+          <p class="footer-brand">大宋英雄传 · Heroes of the Song Dynasty</p>
+          <p class="footer-copy">© 2026 Allenzby、宿海 · 保留所有权利</p>
+        </footer>
+
+        <!-- 通过第三章后弹出的剧情分支选择。选定后才能进入第四章。 -->
+        <div id="route-dialog" class="route-dialog" hidden>
+          <div class="route-panel">
+            <h3>剧情分支・方腊最终战</h3>
+            <p>在江南方腊最终关，玩家必须做出选择：</p>
+            <div id="route-options" class="route-options"></div>
+            <p class="route-warning">两条路线最终都会进入「反宋」章节，但阵容与剧情不同。</p>
+            <button id="route-cancel" type="button" class="route-cancel" hidden>稍后再定</button>
+          </div>
+        </div>
+
+        <!-- 导入导出存档弹框 -->
+        <div id="transfer-dialog" class="confirm-dialog" hidden>
+          <div class="confirm-panel">
+            <h3 id="confirm-title">存档管理</h3>
+            <div class="transfer-content">
+              <div class="transfer-section">
+                <p class="transfer-label">导出存档</p>
+                <p class="transfer-desc">将当前的游戏进度和设置保存为文件，可以备份或传输到其他设备。</p>
+                <button id="transfer-export" type="button">导出存档</button>
+              </div>
+              <div class="transfer-divider"></div>
+              <div class="transfer-section">
+                <p class="transfer-label">导入存档</p>
+                <p class="transfer-desc">从文件恢复游戏进度和设置。当前存档将被覆盖。</p>
+                <button id="transfer-import" type="button" class="button-danger">导入存档</button>
+              </div>
+            </div>
+            <button id="transfer-close" type="button" class="confirm-button">关闭</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="game-screen" class="screen game-screen" hidden>
+        <div id="game"></div>
+
+        <!-- 关卡控制：金币 + 暂停/继续 + 倍速 + 菜单。
+             暂停和倍速在倒计时期间禁用；菜单按钮始终可用，
+             这样卡在倒计时里也能退出或重试。 -->
+        <div id="hud" class="hud">
+          <div id="wave-display" class="hud-wave" hidden></div>
+          <div id="gold-display" class="hud-gold">💰 <span id="gold-value">0</span></div>
+          <button id="pause-button" type="button" class="hud-button" disabled>⏸ 暂停</button>
+          <div class="hud-speed">
+            <button type="button" class="hud-button speed-button is-active" data-speed="1" disabled>1x</button>
+            <button type="button" class="hud-button speed-button" data-speed="2" disabled>2x</button>
+          </div>
+
+          <!-- 全屏。手机横屏时地址栏能吃掉一两成屏幕高度，
+               而画布是按短边等比缩放的（Scale.FIT），
+               所以少一截高度 = 整个画面都变小。
+
+               和菜单按钮一样，倒计时期间也可用（暂停和倍速那两个不是）——
+               它和关卡内容无关。
+
+               逻辑不在 hud.js 里：首页和选关页右上角各还有一个，
+               三个共用 src/ui/fullscreen.js。
+               浏览器不支持全屏（iOS 16.4 之前的 Safari）时
+               那个模块会把三个**一起**藏起来。 -->
+          <button id="fullscreen-button" type="button"
+                  class="hud-button fullscreen-trigger"
+                  title="全屏" aria-label="全屏">⛶</button>
+
+          <div class="hud-menu">
+            <button id="menu-button" type="button" class="hud-button" aria-expanded="false">☰ 菜单</button>
+            <div id="menu-panel" class="menu-panel" hidden>
+              <button id="menu-retry" type="button" class="menu-item">↻ 重试本关</button>
+              <button id="menu-settings" type="button" class="menu-item">⚙ 设置</button>
+              <button id="menu-back" type="button" class="menu-item">← 返回选章</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 通用确认弹框，由 src/ui/confirmDialog.js 填内容和接按钮。
+           放在所有 .screen 外面：它是盖在任意界面之上的一层，
+           不属于某一个界面。 -->
+      <div id="confirm-dialog" class="confirm-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="confirm-title" aria-describedby="confirm-message" hidden>
+        <div class="confirm-panel">
+          <h3 id="confirm-title"></h3>
+          <p id="confirm-message"></p>
+          <div class="confirm-actions">
+            <button id="confirm-cancel" type="button" class="confirm-button"></button>
+            <button id="confirm-ok" type="button" class="confirm-button"></button>
+          </div>
+        </div>
+      </div>
+      <!-- 设置弹框，由 src/ui/settingsDialog.js 接管。
+           和确认弹框一样放在所有 .screen 外面 —— 它盖在游戏画面之上。
+
+           两个 range 滑块。用原生 <input type="range"> 而不是自己画：
+           它自带键盘操作（左右箭头）和触摸拖动，手机上也是系统原生的手感。
+
+           value 写 100（满音量）只是个占位，真正的初值由 JS 从
+           localStorage 读出来填（见 src/state/settings.js）。 -->
+      <div id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="settings-title" hidden>
+        <div class="settings-panel">
+          <h3 id="settings-title">设置</h3>
+
+          <div class="settings-body">
+            <nav class="settings-sidebar">
+              <button type="button" class="settings-tab is-active" data-tab="volume">音量</button>
+              <button type="button" class="settings-tab" data-tab="game">游戏</button>
+              <button type="button" class="settings-tab" data-tab="about">关于</button>
+            </nav>
+
+            <div class="settings-content">
+              <div id="tab-volume" class="settings-tab-content is-active">
+                <div class="setting-row">
+                  <label for="sfx-slider">音效</label>
+                  <input id="sfx-slider" class="setting-slider" type="range"
+                         min="0" max="100" step="5" value="100" />
+                  <output id="sfx-value" class="setting-value" for="sfx-slider">100%</output>
+                </div>
+
+                <div class="setting-row">
+                  <label for="bgm-slider">背景音乐</label>
+                  <input id="bgm-slider" class="setting-slider" type="range"
+                         min="0" max="100" step="5" value="100" />
+                  <output id="bgm-value" class="setting-value" for="bgm-slider">100%</output>
+                </div>
+
+                <p class="setting-hint">音量会自动保存，下次打开还是这个设置。</p>
+              </div>
+
+              <div id="tab-game" class="settings-tab-content">
+                <div class="setting-toggle">
+                  <label for="auto-pause-toggle">自动暂停</label>
+                  <button id="auto-pause-toggle" type="button" class="toggle-button is-on" role="switch" aria-checked="true">
+                    <span class="toggle-knob"></span>
+                  </button>
+                </div>
+                <p class="setting-hint">切换到其他应用时自动暂停游戏。</p>
+
+                <div class="setting-toggle">
+                  <label for="sound-preview-toggle">音效试听</label>
+                  <button id="sound-preview-toggle" type="button" class="toggle-button is-on" role="switch" aria-checked="true">
+                    <span class="toggle-knob"></span>
+                  </button>
+                </div>
+                <p class="setting-hint">调整音量时自动播放音效，方便确认效果。</p>
+
+                <div class="setting-toggle">
+                  <label for="thumbnails-toggle">加载缩略图</label>
+                  <button id="thumbnails-toggle" type="button" class="toggle-button" role="switch" aria-checked="false">
+                    <span class="toggle-knob"></span>
+                  </button>
+                </div>
+                <p class="setting-hint">开启后使用低分辨率图片，加快加载速度，但画质会下降。</p>
+              </div>
+
+              <div id="tab-about" class="settings-tab-content">
+                <div class="about-content">
+                  <img src="favicon.svg" alt="游戏图标" class="about-icon" />
+                  <h4 class="about-title">大宋英雄传</h4>
+                  <p class="about-version">版本 2.6.0</p>
+                  <a href="https://allenzby.netlify.app/" target="_blank" rel="noopener" class="about-link">个人网站 ↗</a>
+                  <a href="https://forum.aiyf.org.cn/#/project/p-2c3879" target="_blank" rel="noopener" class="about-link">体验营项目页 ↗</a>
+                  <a href="https://github.com/Allenzby/heroes-of-the-Song" target="_blank" rel="noopener" class="about-link">GitHub ↗</a>
+                  <a href="https://ifdian.net/a/Allenzby" target="_blank" rel="noopener" class="about-link">爱发电 ↗</a>
+
+                  <button id="about-changelog-button" type="button" class="about-changelog-btn">更新日志</button>
+
+                  <div class="stats-section">
+                    <h5 class="stats-title">游戏统计</h5>
+                    <div class="stats-grid">
+                      <div class="stats-item">
+                        <span class="stats-label">击杀总数</span>
+                        <span id="stat-kills" class="stats-value">0</span>
+                      </div>
+                      <div class="stats-item">
+                        <span class="stats-label">游戏时长</span>
+                        <span id="stat-time" class="stats-value">0 秒</span>
+                      </div>
+                      <div class="stats-item">
+                        <span class="stats-label">建塔次数</span>
+                        <span id="stat-rebuilds" class="stats-value">0</span>
+                      </div>
+                      <div class="stats-item">
+                        <span class="stats-label">进入关卡</span>
+                        <span id="stat-games" class="stats-value">0</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="about-copyright">© 2026 Allenzby、宿海 · 保留所有权利</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="settings-close" type="button" class="confirm-button">关闭</button>
+        </div>
+      </div>
+
+      <!-- 竖屏提示。和确认弹框一样放在所有 .screen 外面 ——
+           它盖在任意界面之上，不属于某一个界面。
+
+           显隐由 src/ui/rotateHint.js 控制（加/去 .is-visible 类）。
+           这儿**原来是纯 CSS**（@media orientation: portrait），
+           但真机上出过"横过来了提示不消失"的毛病 ——
+           媒体查询看不见"人转了但屏幕锁着没转"这回事。
+           为什么改成 JS、以及那个按钮为什么不能省，见 rotateHint.js 开头。
+
+           不写 aria-hidden：里面那个按钮是要真能点到的，
+           整块藏起来的话读屏软件的用户就没有出口了。
+           📱 那个图标单独标 aria-hidden —— 念出来只是噪音。 -->
+      <div id="rotate-hint" class="rotate-hint" role="dialog" aria-modal="true"
+           aria-labelledby="rotate-title">
+        <div class="rotate-panel">
+          <div class="rotate-icon" aria-hidden="true">📱</div>
+          <h3 id="rotate-title">请把手机横过来</h3>
+          <p>大宋英雄传的地图是横向的，<br />横屏才看得全整条路和所有建塔位。</p>
+
+          <!-- 兜底出口。**不能省**：方向判定天生不可能百分之百准
+               （手机开了旋转锁定、分屏小窗，都不是网页能知道的事），
+               没这个按钮的话判错一次就等于整个游戏打不开。
+
+               点完**不是**竖着进游戏 —— 那样开了旋转锁定的人只能
+               竖着看一张横向地图，等于没解决问题。而是把整个界面
+               转 90 度摆着（见 src/ui/forcedLandscape.js）：
+               屏幕锁不锁都一样是横的，玩家自然会把手机转过来看。
+               所以按钮上写的是"转不了"，不是"我已经横过来了"。 -->
+          <button id="rotate-enter" type="button" class="rotate-enter">
+            转不了？把画面转过来
+          </button>
+          <p class="rotate-note">点了之后画面会横过来摆着，把手机跟着转 90 度就能玩。</p>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
