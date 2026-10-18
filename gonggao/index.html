@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 这一页是给人填表的，允许缩放 —— 游戏首页那边才禁，
+         因为点建塔位会被双击/捏合误触。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>公告管理 · 大宋英雄传</title>
+
+    <!-- 图标用 ../ 回到上级：这页输出在 dist/gonggao/ 下，
+         而 favicon 在 dist/ 根部。 -->
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="../favicon.png" type="image/png" sizes="180x180" />
+  </head>
+  <body>
+    <main class="gg">
+      <header class="gg-head">
+        <div>
+          <p class="gg-eyebrow">大宋英雄传 · 后台</p>
+          <h1>公告管理</h1>
+        </div>
+        <a class="gg-back" href="../">← 返回游戏</a>
+      </header>
+
+      <!-- 密码门：默认露出来，验证通过后整个换成编辑器 -->
+      <section id="gg-gate" class="gg-card">
+        <h2>请输入发布密码</h2>
+        <form id="gg-gate-form" autocomplete="off">
+          <input id="gg-password" type="password" placeholder="发布密码"
+                 autocomplete="current-password" required />
+          <button type="submit">进入</button>
+        </form>
+        <p id="gg-gate-msg" class="gg-msg" role="alert" hidden></p>
+        <p class="gg-hint">
+          这里只能发布和修改。想看公告，回<a href="../">游戏首页</a>。
+        </p>
+      </section>
+
+      <!-- 编辑器：密码对了才由 gonggao.js 翻出来 -->
+      <section id="gg-editor" hidden>
+        <div class="gg-card">
+          <h2 id="gg-form-title">发布新公告</h2>
+          <!-- novalidate：让浏览器自己那套「必填」提示别和我们抢话术，
+               校验消息统一走 #gg-form-msg，只有一种说法 -->
+          <form id="gg-notice-form" autocomplete="off" novalidate>
+            <label class="gg-field">
+              <span>标题 <em>必填 · 60 字以内</em></span>
+              <input id="gg-title" type="text" maxlength="60"
+                     placeholder="一句话说清楚，例如：元旦双倍奖励开启" />
+            </label>
+            <label class="gg-field">
+              <span>正文 <em>选填 · 400 字以内</em></span>
+              <textarea id="gg-body" rows="4" maxlength="400"
+                        placeholder="留空也可以 —— 首页公告条只显示标题"></textarea>
+            </label>
+            <label class="gg-check">
+              <input id="gg-pinned" type="checkbox" />
+              <span>置顶（排在最前）</span>
+            </label>
+            <div class="gg-actions">
+              <button type="submit" id="gg-submit">发布</button>
+              <button type="button" id="gg-cancel" class="gg-ghost" hidden>取消修改</button>
+            </div>
+            <p id="gg-form-msg" class="gg-msg" role="status" hidden></p>
+          </form>
+        </div>
+
+        <div class="gg-card">
+          <div class="gg-list-head">
+            <h2>历史公告</h2>
+            <button type="button" id="gg-reload" class="gg-ghost">刷新</button>
+          </div>
+          <p id="gg-empty" class="gg-empty" hidden>还没有公告。上面发一条就出来了。</p>
+          <ul id="gg-list" class="gg-list"></ul>
+          <p id="gg-list-msg" class="gg-msg" role="alert" hidden></p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="../src/gonggao.js"></script>
+  </body>
+</html>
