@@ -1,0 +1,337 @@
+/* /gonggao 页面样式
+   这份是**自包含**的，不 import 主 style.css —— 主样式里有一大堆
+   .screen / #app / .hud 规则，掺进来只会互相干扰。
+   颜色沿用项目的暗色 slate + cyan，让后台看起来和游戏是一家人。 */
+
+:root {
+  --gg-bg: #020617;
+  --gg-panel: #0b1224;
+  --gg-line: rgb(103 232 249 / 22%);
+  --gg-line-soft: rgb(148 163 184 / 18%);
+  --gg-text: #e2e8f0;
+  --gg-dim: #94a3b8;
+  --gg-accent: #67e8f9;
+  --gg-danger: #fca5a5;
+  --gg-radius: 0.85rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 520px at 15% -10%, rgb(34 211 238 / 10%), transparent 60%),
+    var(--gg-bg);
+  color: var(--gg-text);
+  /* 后台是给人填表的，字体用系统字体栈就够了，不引外部字体：
+     这一页本来就没必要为了几个表单框等一次网络。 */
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+}
+
+.gg {
+  width: min(46rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.gg-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.gg-eyebrow {
+  margin: 0;
+  color: var(--gg-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.gg-head h1 {
+  margin: 0.25rem 0 0;
+  font-size: 1.6rem;
+}
+
+.gg-back {
+  color: var(--gg-dim);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.gg-back:hover,
+.gg-back:focus-visible {
+  color: var(--gg-accent);
+}
+
+/* ---------- 卡片 ---------- */
+
+.gg-card {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--gg-line-soft);
+  border-radius: var(--gg-radius);
+  background: rgb(11 18 36 / 82%);
+}
+
+.gg-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.gg-hint,
+.gg-empty {
+  margin: 0.9rem 0 0;
+  color: var(--gg-dim);
+  font-size: 0.85rem;
+}
+
+.gg-hint a {
+  color: var(--gg-accent);
+}
+
+/* ---------- 表单 ---------- */
+
+.gg-field {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.gg-field > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.gg-field em {
+  color: var(--gg-dim);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+}
+
+input[type="text"],
+input[type="password"],
+textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--gg-line-soft);
+  border-radius: 0.5rem;
+  background: rgb(2 6 23 / 70%);
+  color: var(--gg-text);
+  font: inherit;
+  font-size: 0.92rem;
+  transition: border-color 150ms ease;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--gg-accent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+}
+
+.gg-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.88rem;
+}
+
+.gg-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--gg-accent);
+}
+
+.gg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+button {
+  padding: 0.55rem 1.2rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--gg-accent);
+  color: #020617;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gg-ghost {
+  background: transparent;
+  border-color: var(--gg-line-soft);
+  color: var(--gg-dim);
+}
+
+.gg-ghost:hover:not(:disabled) {
+  border-color: var(--gg-accent);
+  color: var(--gg-accent);
+}
+
+/* 密码门里那个「进入」用满宽，移动端拇指好点 */
+#gg-gate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+#gg-gate-form input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+/* ---------- 消息 ---------- */
+
+.gg-msg {
+  margin: 0.8rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--gg-accent);
+  background: rgb(103 232 249 / 8%);
+  color: var(--gg-text);
+  font-size: 0.85rem;
+}
+
+.gg-msg.is-error {
+  border-left-color: var(--gg-danger);
+  background: rgb(252 165 165 / 10%);
+  color: var(--gg-danger);
+}
+
+.gg-msg[hidden] {
+  display: none;
+}
+
+/* ---------- 列表 ---------- */
+
+.gg-list-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.gg-list-head h2 {
+  margin: 0;
+}
+
+.gg-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gg-item {
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--gg-line-soft);
+}
+
+.gg-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.gg-item-title {
+  font-weight: 700;
+}
+
+.gg-item-time {
+  color: var(--gg-dim);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gg-pill {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--gg-line);
+  border-radius: 999px;
+  color: var(--gg-accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.gg-item-body {
+  margin: 0.4rem 0 0;
+  color: var(--gg-dim);
+  font-size: 0.88rem;
+}
+
+.gg-item-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.gg-link {
+  padding: 0;
+  background: none;
+  color: var(--gg-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.gg-link:hover:not(:disabled) {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.gg-link--danger {
+  color: var(--gg-danger);
+}
+
+/* ---------- 窄屏 ---------- */
+
+@media (max-width: 32rem) {
+  .gg {
+    width: min(100% - 1.25rem, 46rem);
+    padding-top: 1.25rem;
+  }
+
+  .gg-card {
+    padding: 1rem;
+  }
+}

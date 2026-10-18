@@ -1,0 +1,2777 @@
+html,
+body,
+#app {
+  width: 100%;
+
+  /* 100dvh 是给手机的：地址栏收放时 100vh / 100% 会跟着跳，
+     整个画布跟着重新缩放一次，看着像画面在抽。dvh（dynamic viewport
+     height）跟的是当前**可见**区域，收放地址栏时不会跳。
+     100% 留在前面作回退 —— 不认 dvh 的浏览器用它。 */
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  background: #111827;
+
+  /* 防止屏幕切换动画时出现滚动条 */
+  overflow: hidden;
+
+  /* ---- 触摸设备上的几条"别把游戏当文档"---- */
+
+  /* manipulation 关掉双击缩放（保留单指滚动和捏合）。
+     两个相邻的建塔位连着点，很容易被浏览器当成一次双击。 */
+  touch-action: manipulation;
+
+  /* 挡住下拉刷新和滑到边缘的橡皮筋回弹。
+     手指在画布上一划就刷新页面，一局就白打了。 */
+  overscroll-behavior: none;
+
+  /* 长按不弹"复制/查找"菜单，点击不闪灰色高亮块。
+     界面上没有任何需要选中的文字，这几条纯粹是干扰。 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+body {
+  color: #f8fafc;
+  font-family: system-ui, sans-serif;
+}
+
+button {
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1.25rem;
+  color: #0f172a;
+  background: #67e8f9;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+/* ---------- 首页和选章界面的背景图 ---------- */
+
+/* assets/art/beijing.png，水墨风的关城与列队。
+   只铺在首页和选章界面上 —— 关卡界面（.game-screen）不铺：
+   那里已经有 Phaser 画的地图了，底下再垫一张会从画布边缘露出来。
+
+   图片走 CSS url() 而不是 JS import：Vite 一样会把它算进产物、
+   加上哈希文件名，但界面本身不需要写任何代码。
+
+   水墨风格：不再用深色蒙版压暗，改用暖色半透明宣纸色薄纱，
+   让水墨画本身透出来，文字用墨色（深色）而非白色。
+   68%~78% 是试出来的下限，再淡一点「准备布阵」那种小灰字就开始发糊。
+
+   background-attachment: fixed 是为了选章界面 —— 它是 overflow-y: auto 的，
+   窗口矮的时候卡片会滚动，不固定的话背景会跟着一起滚，像在拖一张画布。
+   固定之后 cover 是按视口算的，图始终填满屏幕。 */
+.start-screen,
+.select-screen {
+  background:
+    linear-gradient(rgb(2 6 23 / 58%), rgb(2 6 23 / 68%)),
+    url('../assets/art/beijing.png') center / cover no-repeat fixed;
+}
+
+.start-screen {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+/* ---------- 粒子飘落效果 ---------- */
+
+.particles {
+  position: absolute;
+
+  /* inset 是 shorthand，Safari 14.1 才支持（Chrome 87、Firefox 66）。
+     不认它的浏览器会**整条丢弃**，于是 absolute/fixed 元素失去四个偏移、
+     掉回文档流位置 —— 顺序要紧跟在 inset 前面，值一样，无冲突。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particles span {
+  position: absolute;
+  top: -10px;
+  width: var(--size, 3px);
+  height: var(--size, 3px);
+  background: rgba(200, 210, 220, 0.35);
+  border-radius: 50%;
+  animation: particleFall var(--duration, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  left: var(--x, 50%);
+}
+
+.particles span:nth-child(1)  { --x: 5%;   --size: 2px; --duration: 7s;  --delay: 0s; }
+.particles span:nth-child(2)  { --x: 12%;  --size: 4px; --duration: 9s;  --delay: 1.2s; }
+.particles span:nth-child(3)  { --x: 20%;  --size: 3px; --duration: 6s;  --delay: 0.5s; }
+.particles span:nth-child(4)  { --x: 28%;  --size: 2px; --duration: 10s; --delay: 2s; }
+.particles span:nth-child(5)  { --x: 35%;  --size: 5px; --duration: 8s;  --delay: 0.8s; }
+.particles span:nth-child(6)  { --x: 42%;  --size: 3px; --duration: 7s;  --delay: 3s; }
+.particles span:nth-child(7)  { --x: 50%;  --size: 2px; --duration: 11s; --delay: 1.5s; }
+.particles span:nth-child(8)  { --x: 58%;  --size: 4px; --duration: 6s;  --delay: 0.3s; }
+.particles span:nth-child(9)  { --x: 65%;  --size: 3px; --duration: 9s;  --delay: 2.5s; }
+.particles span:nth-child(10) { --x: 72%;  --size: 2px; --duration: 8s;  --delay: 1s; }
+.particles span:nth-child(11) { --x: 78%;  --size: 5px; --duration: 7s;  --delay: 3.5s; }
+.particles span:nth-child(12) { --x: 85%;  --size: 3px; --duration: 10s; --delay: 0.7s; }
+.particles span:nth-child(13) { --x: 92%;  --size: 2px; --duration: 6s;  --delay: 2.2s; }
+.particles span:nth-child(14) { --x: 8%;   --size: 4px; --duration: 9s;  --delay: 1.8s; }
+.particles span:nth-child(15) { --x: 25%;  --size: 3px; --duration: 8s;  --delay: 0.2s; }
+.particles span:nth-child(16) { --x: 45%;  --size: 2px; --duration: 11s; --delay: 3.2s; }
+.particles span:nth-child(17) { --x: 55%;  --size: 5px; --duration: 7s;  --delay: 1.3s; }
+.particles span:nth-child(18) { --x: 68%;  --size: 3px; --duration: 9s;  --delay: 2.8s; }
+.particles span:nth-child(19) { --x: 82%;  --size: 2px; --duration: 6s;  --delay: 0.6s; }
+.particles span:nth-child(20) { --x: 95%;  --size: 4px; --duration: 10s; --delay: 1.6s; }
+
+@keyframes particleFall {
+  0% {
+    transform: translateY(-10px) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(var(--drift, 20px));
+    opacity: 0;
+  }
+}
+
+.particles span:nth-child(odd)  { --drift: -20px; }
+.particles span:nth-child(even) { --drift: 20px; }
+.particles span:nth-child(3n)   { --drift: 30px; }
+
+.start-panel {
+  width: min(32rem, calc(100% - 3rem));
+}
+
+/* 标题和正文加一点投影。蒙版已经把画压暗了，但雾气和城墙那几块
+   明暗差还是大，投影能让字在任何一块上都读得出来。 */
+.start-panel h1 {
+  margin: 0.25rem 0 0.75rem;
+  font-size: clamp(2rem, 7vw, 4rem);
+  text-shadow: 0 0.15rem 1.25rem rgb(2 6 23 / 85%);
+  animation: titleGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  from {
+    text-shadow:
+      0 0.15rem 1.25rem rgb(2 6 23 / 85%),
+      0 0 20px rgba(103, 232, 249, 0.2);
+  }
+  to {
+    text-shadow:
+      0 0.15rem 1.25rem rgb(2 6 23 / 85%),
+      0 0 40px rgba(103, 232, 249, 0.5);
+  }
+}
+
+.start-footer {
+  position: absolute;
+  bottom: 1rem;
+  width: 100%;
+  text-align: center;
+  color: rgb(148 163 184 / 50%);
+  font-size: 0.65rem;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+}
+
+.footer-brand {
+  margin: 0 0 0.2rem;
+  color: rgb(148 163 184 / 40%);
+  font-size: 0.6rem;
+}
+
+.footer-copy {
+  margin: 0 0 0.3rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: rgb(148 163 184 / 50%);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+@media (hover: hover) {
+  .footer-links a:hover {
+    color: #67e8f9;
+  }
+}
+
+.footer-sep {
+  color: rgb(148 163 184 / 30%);
+}
+
+/* ---------- 页脚的引子条 ---------- */
+
+/* 两个 footer 各有一条，所以用 .support-bar 通吃，不按页面分开写。
+   半透明深底 + 细边框：看得见但不抢戏 —— 它是页脚的一部分，
+   不是弹窗广告。
+
+   类名不写赞助、广告那类英文关键词：过滤插件按关键词做通用隐藏，
+   撞上了会把中间那段文字删掉，只剩图标和箭头，页面看着缺一块。 */
+.support-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto 0.55rem;
+  padding: 0.42rem 0.9rem;
+  box-sizing: border-box;
+  border: 1px solid rgb(103 232 249 / 30%);
+  border-radius: 999px;
+  background: rgb(15 23 42 / 65%);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.support-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.support-note {
+  color: rgb(203 213 225 / 85%);
+}
+
+.support-action {
+  color: #67e8f9;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .support-bar:hover {
+    border-color: rgb(103 232 249 / 65%);
+    background: rgb(30 41 59 / 80%);
+  }
+}
+
+/* 手机上手指粗，整条都要好点 —— 加高一点，字号也跟着放大。 */
+@media (pointer: coarse) {
+  .support-bar {
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+.start-panel p {
+  text-shadow: 0 0.1rem 0.6rem rgb(2 6 23 / 90%);
+}
+
+.start-buttons {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+}
+
+.button-secondary {
+  background: transparent;
+  border: 1px solid rgb(148 163 184 / 40%);
+  color: #e2e8f0;
+}
+
+@media (hover: hover) {
+  .button-secondary:hover {
+    background: rgb(148 163 184 / 20%);
+    border-color: #67e8f9;
+    color: #67e8f9;
+  }
+}
+
+.eyebrow {
+  color: #67e8f9;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+/* ---------- 首页公告条 ----------
+   .start-screen 是 display:grid + text-align:center，公告条里全是文字，
+   不显式改回 left 会整条居中、长标题左右都挂不齐。
+   [hidden] 那一行不是可有可无的：下面写了 display:flex，
+   而 flex 会**盖掉** hidden 属性自带的 display:none ——
+   少了它，"没有公告"的时候页面上会照样杵着一条空壳。 */
+.notice-ticker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0 0 1.25rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid rgb(103 232 249 / 25%);
+  border-radius: 0.75rem;
+  background: rgb(2 6 23 / 70%);
+  font-size: 0.8rem;
+  text-align: left;
+  overflow: hidden;
+}
+
+.notice-ticker[hidden] {
+  display: none;
+}
+
+.notice-ticker__tag {
+  flex: none;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #67e8f9;
+  color: #020617;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.notice-ticker__title {
+  flex: 1;
+  min-width: 0;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.notice-ticker__count {
+  flex: none;
+  color: #67e8f9;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+/* 换条时先淡出再换文字 —— 直接改 textContent 会硬闪，看着像卡了一下 */
+.notice-ticker.is-swapping .notice-ticker__title,
+.notice-ticker.is-swapping .notice-ticker__count {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+/* ---------- 首页英雄展示 ---------- */
+
+.hero-showcase {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.hero-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  animation: heroFadeIn 0.5s ease both;
+  animation-delay: calc(var(--delay) * 0.1s);
+}
+
+.hero-card img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgb(103 232 249 / 40%);
+  object-fit: cover;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.hero-card span {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+@media (hover: hover) {
+  .hero-card img:hover {
+    transform: scale(1.15);
+    border-color: #67e8f9;
+  }
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(1.2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 英雄飞散动画 */
+.hero-showcase.is-leaving .hero-card {
+  animation: heroFlyOut 0.4s ease-in forwards;
+  animation-delay: calc(var(--delay) * 0.06s);
+}
+
+@keyframes heroFlyOut {
+  to {
+    opacity: 0;
+    transform: translateY(-3rem) scale(0.6);
+  }
+}
+
+.game-screen {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- 选章界面 ---------- */
+
+.select-screen {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+
+  /* 左右的内边距要把安全区算进去 —— 横屏时刘海在侧边，
+     卡片贴着边会被圆角切掉一点。 */
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right));
+  padding-left: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.select-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  text-shadow: 0 0.1rem 0.6rem rgb(2 6 23 / 90%);
+}
+
+.select-footer {
+  text-align: center;
+  font-size: 0.7rem;
+  color: rgb(148 163 184 / 60%);
+  line-height: 1.5;
+}
+
+.back-button {
+  position: absolute;
+  left: clamp(0.8rem, 3vw, 2rem);
+  top: 1.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.5rem;
+  background: rgb(15 23 42 / 80%);
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+@media (hover: hover) {
+  .back-button:hover {
+    background: rgb(103 232 249 / 15%);
+    border-color: #67e8f9;
+    color: #67e8f9;
+  }
+}
+
+.select-header h2 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.select-actions {
+  position: absolute;
+  top: max(0.8rem, env(safe-area-inset-top));
+  right: max(0.8rem, env(safe-area-inset-right));
+  z-index: 5;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.settings-button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 85%);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+@media (hover: hover) {
+  .settings-button:hover {
+    border-color: #67e8f9;
+    background: rgb(51 65 85 / 90%);
+  }
+}
+
+@media (pointer: coarse) {
+  .settings-button {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ---------- 全屏按钮（首页右上角那个） ---------- */
+
+/* 三个全屏按钮都带 .fullscreen-trigger，逻辑共用 src/ui/fullscreen.js。
+   选关页那个排在 .select-actions 里、关卡那个在 .hud 里，
+   位置由父级决定 —— 只有首页这一排是空的，需要单独钉一个。
+
+   为什么放右上角：另外两个界面的 ⛶ 都在右上角，
+   首页空着的话同一套按钮会"时有时无"，看着像坏了。
+
+   position: fixed 而不是 absolute：.start-screen 是 grid 且没有
+   position: relative，absolute 会跑到视口上去（效果一样但语义是错的），
+   而且 .particles 那层已经占了 absolute。fixed 直接相对视口，
+   和 .visitor-badge 一个套路。
+
+   z-index 5：压在 .particles 和 .start-panel 之上，
+   但低于弹框（codex/settings 是 30，确认框 30，更新日志 40）——
+   弹框开着的时候这个按钮该被盖住，不然能隔着蒙层点。 */
+.fullscreen-corner {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  z-index: 5;
+}
+
+/* 强制横屏时 #app 整个转了 90 度，fixed 的参照也跟着转 ——
+   安全区的四个方向要换算，理由同 body.is-forced-landscape .hud。 */
+body.is-forced-landscape .fullscreen-corner {
+  top: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-bottom));
+}
+
+.select-hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+/* 最窄宽度从 11rem 提到 13rem：卡片上多了敌人标签那一段。
+   最多的一关有 3 种敌人，其中第三章是「官兵 / 方腊信徒 / 重甲步兵」——
+   名字都长，11rem 会折成三行，把整排卡片都撑高。 */
+
+/* ---------- 章节轮播 ---------- */
+
+.chapter-carousel {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  width: min(64rem, 96%);
+  margin: 0 auto;
+}
+
+.chapter-list {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chapter-card {
+  display: flex;
+  flex-direction: row;
+  gap: 1.2rem;
+  padding: 1.2rem 1.5rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: rgb(15 23 42 / 92%);
+  box-shadow: 0 0.5rem 2rem rgb(2 6 23 / 60%);
+  color: #e2e8f0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+  width: 100%;
+  max-width: 56rem;
+  min-height: 18rem;
+}
+
+.chapter-map-preview {
+  flex: 0 0 55%;
+  height: auto;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  background: rgb(30 41 59 / 50%);
+}
+
+.chapter-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.chapter-map-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+@media (hover: hover) {
+  .chapter-card:hover:not(:disabled) .chapter-map-preview img {
+    transform: scale(1.05);
+  }
+}
+
+.chapter-arrow {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 50%;
+  background: rgb(15 23 42 / 80%);
+  color: #e2e8f0;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.chapter-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .chapter-arrow:hover:not(:disabled) {
+    background: rgb(103 232 249 / 15%);
+    border-color: #67e8f9;
+    color: #67e8f9;
+  }
+}
+
+.chapter-counter {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+@keyframes cardSlideOutLeft {
+  to {
+    opacity: 0;
+    transform: translateX(-3rem);
+  }
+}
+
+@keyframes cardSlideOutRight {
+  to {
+    opacity: 0;
+    transform: translateX(3rem);
+  }
+}
+
+@keyframes cardSlideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(3rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes cardSlideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-3rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 剧情分支节点横跨整行，这样"两条路线汇入第四章"的关系仍然读得出来。 */
+.chapter-slot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* hover 效果一律包在 @media (hover: hover) 里 —— 见文件末尾
+   「触摸设备」那一段的说明。触摸浏览器会把一次点击也算成 hover，
+   点完就**粘住**不放，卡片会一直亮着边框，看着像"这张选中了"。 */
+@media (hover: hover) {
+  .chapter-card:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: #67e8f9;
+    background: rgb(30 41 59 / 95%);
+  }
+}
+
+.chapter-card.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chapter-card.is-cleared {
+  border-color: rgb(74 222 128 / 55%);
+}
+
+.chapter-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.chapter-label {
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.chapter-difficulty {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.diff-tutorial {
+  color: #93c5fd;
+  background: rgb(59 130 246 / 18%);
+}
+
+.diff-normal {
+  color: #fbbf24;
+  background: rgb(251 191 36 / 15%);
+}
+
+.diff-hard {
+  color: #fca5a5;
+  background: rgb(239 68 68 / 18%);
+}
+
+.chapter-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.chapter-scene {
+  color: #67e8f9;
+  font-size: 0.7rem;
+}
+
+.chapter-summary {
+  flex: 1;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* ---------- 卡片上的"本关敌人" ---------- */
+
+/* 夹在简介和徽章之间，上面画一道分隔线 ——
+   它是"数据"，和上面那段叙述性的简介不是一类东西。
+   flex: 1 在 .chapter-summary 上，所以这一段和徽章一起被推到卡片底部。 */
+.chapter-enemies {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgb(148 163 184 / 15%);
+}
+
+.enemies-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.enemies-label {
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.enemies-total {
+  color: #fca5a5;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 敌人标签自动换行。最多的一关有 3 种敌人（第三章那三个名字都长），
+   卡片宽度是 auto-fit 来的（最窄 13rem），所以只能让它自己折。 */
+.enemy-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* 一个标签 = 敌人名 + 数量。数量用 <b> 包着，
+   靠 font-variant-numeric 让不同位数的数字对齐宽度一致。 */
+.enemy-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid rgb(248 113 113 / 25%);
+  border-radius: 0.3rem;
+  background: rgb(127 29 29 / 22%);
+  color: #fecaca;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.enemy-tag b {
+  color: #fca5a5;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* 锁着的章节只显示"敌情不明"，不列具体兵种（见 chapterSelect.js 的注释）。 */
+.chapter-enemies.is-hidden {
+  margin-top: auto;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgb(148 163 184 / 15%);
+  color: #64748b;
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.chapter-badge {
+  margin-top: auto;
+  padding-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.chapter-card.is-cleared .chapter-badge {
+  color: #4ade80;
+}
+
+.chapter-card.is-unlocked .chapter-badge {
+  color: #fbbf24;
+}
+
+/* ---------- 大章节卡片 ---------- */
+
+.big-chapter-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 2rem 3rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: rgb(15 23 42 / 92%);
+  box-shadow: 0 0.5rem 2rem rgb(2 6 23 / 60%);
+  color: #e2e8f0;
+  text-align: center;
+  width: 100%;
+  max-width: 48rem;
+  min-height: 14rem;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  overflow: hidden;
+}
+
+.big-chapter-card[style*="background-image"] {
+  background-size: cover;
+  background-position: center;
+}
+
+.big-chapter-card[style*="background-image"] {
+  border: none;
+  box-shadow: none;
+}
+
+.big-chapter-card[style*="background-image"]::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  bottom: -2px;
+  left: -2px;
+  inset: -2px;
+  border-radius: calc(1rem + 2px);
+  background: linear-gradient(
+    rgb(15 23 42 / 75%),
+    rgb(15 23 42 / 85%)
+  );
+  z-index: 0;
+}
+
+.big-chapter-card[style*="background-image"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.big-chapter-card[style*="background-image"]::before {
+  transition: opacity 0.12s;
+}
+
+@media (hover: hover) {
+  .big-chapter-card:hover:not(.is-locked) {
+    transform: translateY(-2px);
+    border-color: #67e8f9;
+  }
+  .big-chapter-card[style*="background-image"]:hover:not(.is-locked)::before {
+    opacity: 0.6;
+  }
+}
+
+.big-chapter-card.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.big-chapter-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.big-chapter-name {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #67e8f9;
+}
+
+.big-chapter-status {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.big-chapter-desc {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.big-chapter-enter {
+  color: #67e8f9;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ---------- 关卡列表 ---------- */
+
+.level-list-view {
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.level-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.level-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 0.8rem;
+  background: rgb(15 23 42 / 88%);
+  box-shadow: 0 0.4rem 1rem rgb(2 6 23 / 45%);
+  color: #e2e8f0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+@media (hover: hover) {
+  .level-card:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: #67e8f9;
+  }
+}
+
+.level-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.level-card.is-cleared {
+  border-color: rgb(74 222 128 / 40%);
+}
+
+.level-map-preview {
+  width: 100%;
+  height: 7rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: rgb(30 41 59 / 50%);
+}
+
+.level-map-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.level-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.level-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.level-label {
+  color: #67e8f9;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.level-difficulty {
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.level-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.level-scene {
+  color: #67e8f9;
+  font-size: 0.65rem;
+}
+
+.level-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.level-enemies-text {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+}
+
+.level-card.is-cleared .level-badge {
+  color: #4ade80;
+}
+
+.level-card.is-unlocked .level-badge {
+  color: #fbbf24;
+}
+
+/* ---------- 剧情分支节点（第三章与第四章之间） ---------- */
+
+/* 分支节点：独立一页，紫色主题 */
+.choice-node {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  border: 1px solid rgb(168 85 247 / 40%);
+  border-radius: 1rem;
+  background: rgb(30 15 60 / 92%);
+  box-shadow: 0 0.5rem 2rem rgb(2 6 23 / 60%);
+  color: #e2e8f0;
+  width: 100%;
+  max-width: 56rem;
+  min-height: 18rem;
+  align-items: center;
+}
+
+.choice-visual {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.choice-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.choice-node.is-locked {
+  opacity: 0.45;
+}
+
+.choice-node.is-pending {
+  border-color: #c084fc;
+  background: rgb(45 18 78 / 90%);
+}
+
+.choice-head {
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+}
+
+.choice-title {
+  color: #d8b4fe;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.choice-sub {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.choice-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* 两条路线竖排，和卡片窄宽度匹配。 */
+.choice-routes {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.choice-route {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 0.4rem;
+  opacity: 0.5;
+}
+
+.choice-route.is-active {
+  border-color: #c084fc;
+  background: rgb(168 85 247 / 18%);
+  opacity: 1;
+}
+
+.choice-tag {
+  color: #d8b4fe;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.choice-action {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* 状态沉到底部，和章节卡片的徽章对齐。 */
+.choice-aside {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.choice-status {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.choice-merge {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+
+.choice-change {
+  justify-self: start;
+  margin-top: 0.2rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  background: rgb(168 85 247 / 30%);
+  color: #f3e8ff;
+  font-size: 0.7rem;
+}
+
+/* ---------- 剧情分支弹层 ---------- */
+
+.route-dialog {
+  position: fixed;
+  z-index: 20;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。
+     弹层是 fixed，少了这几行老 Safari 会把它整个掉出视口。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(2 6 23 / 78%);
+  overflow-y: auto;
+}
+
+.route-dialog[hidden] {
+  display: none;
+}
+
+.route-panel {
+  width: min(34rem, 100%);
+  padding: 1.5rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: #0f172a;
+  text-align: center;
+}
+
+.route-panel h3 {
+  margin: 0 0 0.4rem;
+  color: #d8b4fe;
+}
+
+.route-options {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1rem;
+}
+
+.route-option {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+  border: 1px solid rgb(168 85 247 / 35%);
+  border-radius: 0.75rem;
+  background: rgb(30 41 59 / 80%);
+  color: #e2e8f0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .route-option:hover {
+    border-color: #c084fc;
+    background: rgb(51 65 85 / 90%);
+  }
+}
+
+.route-option-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.route-option-tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgb(168 85 247 / 30%);
+  color: #f3e8ff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.route-option-name {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.route-option-detail {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.route-warning {
+  margin: 0;
+  color: #f59e0b;
+  font-size: 0.75rem;
+}
+
+.route-cancel {
+  margin-top: 0.9rem;
+  background: rgb(148 163 184 / 25%);
+  color: #e2e8f0;
+  font-size: 0.78rem;
+}
+
+.route-cancel[hidden] {
+  display: none;
+}
+
+/* ---------- 图鉴弹框 ---------- */
+
+.codex-dialog {
+  position: fixed;
+  z-index: 30;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(2 6 23 / 78%);
+}
+
+.codex-dialog[hidden] {
+  display: none;
+}
+
+/* 更新日志是从设置弹窗（z-index 30）里点开的，必须盖在它上面，
+   否则会被同级的设置面板压住 —— 两者是嵌套关系不是互斥关系。 */
+#changelog-dialog {
+  z-index: 40;
+}
+
+.codex-panel {
+  width: min(36rem, 95%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: #0f172a;
+  box-shadow: 0 1rem 2rem rgb(2 6 23 / 55%);
+  overflow: hidden;
+}
+
+.codex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid rgb(148 163 184 / 15%);
+}
+
+.codex-header h3 {
+  margin: 0;
+  color: #67e8f9;
+  font-size: 1.05rem;
+}
+
+.codex-close {
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .codex-close:hover {
+    background: rgb(148 163 184 / 20%);
+    color: #e2e8f0;
+  }
+}
+
+.codex-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgb(148 163 184 / 15%);
+}
+
+.codex-tab {
+  flex: 1;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+@media (hover: hover) {
+  .codex-tab:hover:not(.is-active) {
+    color: #e2e8f0;
+  }
+}
+
+.codex-tab.is-active {
+  color: #67e8f9;
+  border-bottom-color: #67e8f9;
+}
+
+.codex-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.codex-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 0.6rem;
+  background: rgb(30 41 59 / 60%);
+  text-align: center;
+}
+
+.codex-item img {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
+
+.codex-item-name {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.codex-item-info {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* ---------- 屏幕切换动画 ---------- */
+
+/* 向右滑出（当前屏幕往右消失） */
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100vw); opacity: 0; }
+}
+
+/* 从左侧滑入（新屏幕从左边进来） */
+@keyframes slideInLeft {
+  from { transform: translateX(-100vw); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* 向左滑出（当前屏幕往左消失） */
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100vw); opacity: 0; }
+}
+
+/* 从右侧滑入（新屏幕从右边进来） */
+@keyframes slideInRight {
+  from { transform: translateX(100vw); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* 淡出 */
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* 淡入 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.screen {
+  will-change: transform, opacity;
+  /* 禁用硬件加速可能带来的文字模糊，但保持 transform 合成层 */
+  backface-visibility: hidden;
+}
+
+/* 向右滑出（返回上一级） */
+.screen.anim-slide-out-right {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 从左侧滑入（返回上一级） */
+.screen.anim-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 向左滑出（进入下一级） */
+.screen.anim-slide-out-left {
+  animation: slideOutLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 从右侧滑入（进入下一级） */
+.screen.anim-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 淡出 */
+.screen.anim-fade-out {
+  animation: fadeOut 0.25s ease-out forwards;
+}
+
+/* 淡入 */
+.screen.anim-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* ---------- 选关卡片飞入动画 ---------- */
+
+@keyframes cardFlyIn {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chapter-card {
+  opacity: 0;
+  animation: cardFlyIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.chapter-card:nth-child(1) { animation-delay: 0.04s; }
+.chapter-card:nth-child(2) { animation-delay: 0.08s; }
+.chapter-card:nth-child(3) { animation-delay: 0.12s; }
+.chapter-card:nth-child(4) { animation-delay: 0.16s; }
+.chapter-card:nth-child(5) { animation-delay: 0.2s; }
+
+/* ---------- 首页标题飞入 ---------- */
+
+@keyframes titleFlyIn {
+  from {
+    opacity: 0;
+    transform: translateY(-1.2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.start-panel {
+  animation: titleFlyIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- 弹框动画 ---------- */
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes panelFlyIn {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panelFlyOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0.8rem) scale(0.97);
+  }
+}
+
+/* 弹框打开 */
+.dialog-open {
+  animation: overlayFadeIn 0.2s ease-out;
+}
+
+.dialog-open .settings-panel,
+.dialog-open .codex-panel,
+.dialog-open .confirm-panel,
+.dialog-open .route-panel {
+  animation: panelFlyIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 弹框关闭 */
+.dialog-closing {
+  animation: overlayFadeOut 0.2s ease-out forwards;
+  pointer-events: none;
+}
+
+.dialog-closing .settings-panel,
+.dialog-closing .codex-panel,
+.dialog-closing .confirm-panel,
+.dialog-closing .route-panel {
+  animation: panelFlyOut 0.2s ease-out forwards;
+}
+
+/* ---------- 关卡 HUD（右上角） ---------- */
+
+/* 安全区：刘海屏横屏时挖孔和圆角在**左右两边**，
+   右上角的 HUD 正好撞上。max() 取"1rem 和安全区谁大用谁"——
+   没有安全区的设备（电脑、老手机）env() 返回 0，还是 1rem。 */
+.hud {
+  position: absolute;
+  z-index: 2;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hud-button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 85%);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* 金币。和按钮排在同一行，样式也照 .hud-button，
+   只是它不是按钮 —— 不加 hover，鼠标事件全部放过去，
+   免得挡住底下画布上的建塔位。 */
+.hud-gold {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(251 191 36 / 35%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 85%);
+  color: #fbbf24;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.hud-wave {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(251 191 36 / 35%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 85%);
+  color: #fbbf24;
+  font-size: 0.85rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.hud-wave[hidden] {
+  display: none;
+}
+
+/* ---------- 新手引导提示 ---------- */
+
+.tutorial-hint {
+  position: fixed;
+  bottom: max(3rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  max-width: min(20rem, 80%);
+  padding: 0.7rem 1.1rem;
+  border: 1px solid rgb(103 232 249 / 45%);
+  border-radius: 0.7rem;
+  background: rgb(15 23 42 / 90%);
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.5;
+  box-shadow: 0 0.4rem 1.2rem rgb(2 6 23 / 60%);
+  animation: tutorial-fade-in 0.3s ease-out;
+}
+
+.tutorial-hint[hidden] {
+  display: none;
+}
+
+@keyframes tutorial-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ---------- 首页访客计数 ---------- */
+
+.visitor-badge {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  right: max(1rem, env(safe-area-inset-right));
+  z-index: 5;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.5rem;
+  background: rgb(15 23 42 / 85%);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 0.2rem 0.8rem rgb(2 6 23 / 50%);
+}
+
+.visitor-badge[hidden] {
+  display: none;
+}
+
+/* 收到击杀奖励时跳一下。由 hud.js 的 pulseGold() 加上这个 class。
+   放大 + 变亮 + 描一圈金光，和地图上的 "+10" 飘字同时发生。 */
+.hud-gold.is-gaining {
+  animation: gold-gain 340ms ease-out;
+}
+
+@keyframes gold-gain {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.22);
+    border-color: rgb(253 230 138 / 90%);
+    color: #fef3c7;
+    box-shadow: 0 0 12px rgb(251 191 36 / 60%);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 关掉动画偏好时就别跳了。 */
+@media (prefers-reduced-motion: reduce) {
+  .hud-gold.is-gaining {
+    animation: none;
+  }
+}
+
+@media (hover: hover) {
+  .hud-button:hover:not(:disabled) {
+    border-color: #67e8f9;
+    background: rgb(51 65 85 / 90%);
+  }
+}
+
+.hud-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hud-button.is-paused {
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.hud-speed {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 0.7rem;
+  background: rgb(15 23 42 / 85%);
+}
+
+.speed-button {
+  padding: 0.35rem 0.6rem;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.speed-button.is-active {
+  border-color: #67e8f9;
+  background: rgb(103 232 249 / 18%);
+  color: #67e8f9;
+}
+
+/* ---------- 设置弹框（音量） ---------- */
+
+/* z-index 和确认框一样是 30 —— 两者不会同时开着（打开设置前菜单就收了，
+   而退出确认框是从菜单另一条路弹的），不需要再分层。
+   竖屏提示是 40，仍然压在它上面：那是"横过来才能玩"，优先级最高。 */
+.settings-dialog {
+  position: fixed;
+  z-index: 30;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(2 6 23 / 78%);
+}
+
+.settings-dialog[hidden] {
+  display: none;
+}
+
+.settings-panel {
+  width: min(32rem, 90%);
+  padding: 1.4rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: #0f172a;
+  box-shadow: 0 1rem 2rem rgb(2 6 23 / 55%);
+}
+
+.settings-panel h3 {
+  margin: 0 0 1rem;
+  color: #67e8f9;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.settings-body {
+  display: flex;
+  gap: 0;
+  min-height: 16rem;
+  max-height: 60vh;
+  border: 1px solid rgb(148 163 184 / 15%);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 5.5rem;
+  border-right: 1px solid rgb(148 163 184 / 15%);
+  background: rgb(15 23 42 / 60%);
+}
+
+.settings-tab {
+  padding: 0.6rem 0.8rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+@media (hover: hover) {
+  .settings-tab:hover:not(.is-active) {
+    background: rgb(51 65 85 / 60%);
+    color: #e2e8f0;
+  }
+}
+
+.settings-tab.is-active {
+  background: rgb(103 232 249 / 10%);
+  color: #67e8f9;
+}
+
+.settings-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-tab-content {
+  display: none;
+}
+
+.settings-tab-content.is-active {
+  display: block;
+}
+
+.about-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.about-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.about-title {
+  margin: 0 0 0.3rem;
+  color: #67e8f9;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.about-version {
+  margin: 0 0 0.2rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.about-link {
+  margin-bottom: 0.45rem;
+  color: #67e8f9;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .about-link:hover {
+    text-decoration: underline;
+  }
+}
+
+.about-copyright {
+  width: 100%;
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgb(148 163 184 / 15%);
+  color: rgb(148 163 184 / 55%);
+  font-size: 0.7rem;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- 更新日志 ---------- */
+
+.about-changelog-btn {
+  margin-top: 0.9rem;
+  padding: 0.5rem 1.4rem;
+  border: 1px solid rgb(103 232 249 / 45%);
+  border-radius: 0.6rem;
+  background: rgb(103 232 249 / 10%);
+  color: #67e8f9;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .about-changelog-btn:hover {
+    background: rgb(103 232 249 / 22%);
+  }
+}
+
+.changelog-content {
+  flex: 1;
+  padding: 1rem 1.2rem 1.4rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.changelog-entry {
+  margin-bottom: 1.1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid rgb(148 163 184 / 12%);
+}
+
+.changelog-entry:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.changelog-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.changelog-ver {
+  color: #67e8f9;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.changelog-entry:not(.is-latest) .changelog-ver {
+  color: #94a3b8;
+}
+
+.changelog-badge {
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgb(103 232 249 / 18%);
+  color: #67e8f9;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.changelog-date {
+  margin-left: auto;
+  color: rgb(148 163 184 / 55%);
+  font-size: 0.72rem;
+}
+
+.changelog-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.changelog-list li {
+  margin-bottom: 0.15rem;
+}
+
+/* ---------- 游戏统计 ---------- */
+
+.stats-section {
+  width: 100%;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(148 163 184 / 15%);
+}
+
+.stats-title {
+  margin: 0 0 0.8rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.stats-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid rgb(148 163 184 / 15%);
+  border-radius: 0.5rem;
+  background: rgb(30 41 59 / 50%);
+}
+
+.stats-label {
+  color: #64748b;
+  font-size: 0.72rem;
+  margin-bottom: 0.2rem;
+}
+
+.stats-value {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* 一行 = 标签 + 滑块 + 百分比。
+   标签固定 4.5rem、数字固定 2.8rem，中间的滑块吃掉剩下的宽度 ——
+   两行的滑块左右端才会对齐，不会因为「音效」比「背景音乐」短就错开。
+   数字用 tabular-nums + 右对齐，从 5% 拖到 100% 时不会左右跳。 */
+.setting-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 2.8rem;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.setting-row label {
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.setting-value {
+  color: #67e8f9;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 滑块。appearance: none 之后轨道和滑柄都要自己画，
+   而且两套伪元素得分开写 —— ::-webkit-slider-thumb 和 ::-moz-range-thumb
+   放在同一条规则里的话，不认某一个的浏览器会把整条规则丢掉。 */
+.setting-slider {
+  width: 100%;
+  height: 1.6rem;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.setting-slider::-webkit-slider-runnable-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 30%);
+}
+
+.setting-slider::-moz-range-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 30%);
+}
+
+/* 滑柄 1.1rem，比 44px 的触摸目标小 —— 但拖动的判定区是整条轨道
+   （height: 1.6rem 那一整条都能按下），手指点在轨道任意处滑柄就跳过去，
+   所以实际可操作区域是够的。手机上再放大一档，见文件末尾。
+
+   margin-top 要把滑柄在轨道上居中：(轨道 0.35 - 滑柄 1.1) / 2 = -0.375。
+   Firefox 不需要这一行（它自己会居中），所以只写在 webkit 那边。 */
+.setting-slider::-webkit-slider-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: -0.375rem;
+  border: 0;
+  border-radius: 50%;
+  background: #67e8f9;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.setting-slider::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 0;
+  border-radius: 50%;
+  background: #67e8f9;
+}
+
+/* 键盘操作时要看得见焦点 —— 滑块是靠左右箭头调的，
+   看不出焦点在哪一条上就不知道箭头会动哪个音量。 */
+.setting-slider:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+.setting-hint {
+  margin: 0 0 1.1rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.setting-toggle label {
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.toggle-button {
+  position: relative;
+  width: 2.8rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 999px;
+  background: rgb(51 65 85 / 80%);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.toggle-button.is-on {
+  background: rgb(103 232 249 / 30%);
+  border-color: #67e8f9;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: #94a3b8;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.toggle-button.is-on .toggle-knob {
+  transform: translateX(1.3rem);
+  background: #67e8f9;
+}
+
+/* 只有一个「关闭」按钮，撑满一行。
+   设置没有"确定/取消"—— 拖动时就已经生效并存下来了。 */
+#settings-close {
+  width: 100%;
+}
+
+/* ---------- 通用确认弹框 ---------- */
+
+/* z-index 要比 HUD（2）和菜单面板（3）都高，否则会被右上角那排按钮压住。
+   剧情分支弹层是 20，设置是 30，这个更靠上：它可能盖在设置之上再问一句。 */
+.confirm-dialog {
+  position: fixed;
+  z-index: 40;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(2 6 23 / 78%);
+}
+
+.confirm-dialog[hidden] {
+  display: none;
+}
+
+.confirm-panel {
+  width: min(24rem, 100%);
+  padding: 1.4rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: #0f172a;
+  box-shadow: 0 1rem 2rem rgb(2 6 23 / 55%);
+  text-align: center;
+}
+
+.confirm-panel h3 {
+  margin: 0 0 0.6rem;
+  color: #fbbf24;
+  font-size: 1.05rem;
+}
+
+.confirm-panel p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.3rem;
+}
+
+/* 两个按钮等宽平分：这是"要么退要么留"的选择，
+   不该有一边看着比另一边更像默认选项。 */
+.confirm-button {
+  flex: 1;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.6rem;
+  background: rgb(30 41 59 / 90%);
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .confirm-button:hover {
+    border-color: #67e8f9;
+    background: rgb(51 65 85 / 95%);
+  }
+}
+
+/* 会丢东西的那个按钮描成红的，让玩家在点之前多看一眼。 */
+.confirm-button.is-danger {
+  border-color: rgb(239 68 68 / 55%);
+  color: #fca5a5;
+}
+
+@media (hover: hover) {
+  .confirm-button.is-danger:hover {
+    border-color: #ef4444;
+    background: rgb(127 29 29 / 55%);
+    color: #fee2e2;
+  }
+}
+
+/* 键盘操作时焦点要看得见 —— 弹框默认把焦点放在「取消」上，
+   看不见描边的话玩家不知道回车会触发哪个。 */
+.confirm-button:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+/* ---------- 存档管理弹框 ---------- */
+
+.transfer-content {
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.transfer-section {
+  padding: 0.8rem 0;
+}
+
+.transfer-label {
+  margin: 0 0 0.3rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.transfer-desc {
+  margin: 0 0 0.6rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.transfer-section button {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.6rem;
+  background: rgb(30 41 59 / 90%);
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .transfer-section button:hover {
+    border-color: #67e8f9;
+    background: rgb(51 65 85 / 95%);
+  }
+}
+
+.transfer-section button.button-danger {
+  border-color: rgb(239 68 68 / 55%);
+  color: #fca5a5;
+}
+
+@media (hover: hover) {
+  .transfer-section button.button-danger:hover {
+    border-color: #ef4444;
+    background: rgb(127 29 29 / 55%);
+    color: #fee2e2;
+  }
+}
+
+.transfer-divider {
+  height: 1px;
+  margin: 0.5rem 0;
+  background: rgb(148 163 184 / 15%);
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+#game canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+
+  /* 画布上比 body 更狠一档：none 连单指平移都不给。
+     body 用的 manipulation 仍然允许一指划动去滚页面 ——
+     手指按在建塔位上稍微一动就变成滚动，那一下点击就丢了。 */
+  touch-action: none;
+}
+
+/* ---------- 菜单按钮与弹出面板 ---------- */
+
+/* 相对定位，让面板挂在按钮正下方右对齐。 */
+.hud-menu {
+  position: relative;
+}
+
+.hud-button.is-open {
+  border-color: #67e8f9;
+  color: #67e8f9;
+}
+
+.menu-panel {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  display: grid;
+  gap: 0.3rem;
+  min-width: 9rem;
+  padding: 0.4rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 95%);
+  box-shadow: 0 0.6rem 1.2rem rgb(2 6 23 / 45%);
+}
+
+.menu-panel[hidden] {
+  display: none;
+}
+
+/* 菜单面板动画（特殊处理，不是全屏弹框） */
+.menu-panel.dialog-open {
+  animation: panelFlyIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-panel.dialog-closing {
+  animation: panelFlyOut 0.15s ease-out forwards;
+  pointer-events: none;
+}
+
+.menu-item {
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #e2e8f0;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .menu-item:hover {
+    background: rgb(51 65 85 / 90%);
+    color: #67e8f9;
+  }
+}
+
+/* ---------- 触摸设备（手机 / 平板）---------- */
+
+/* 这一段的两条媒体查询是干不同事的，别混：
+     (hover: hover)    —— 有没有真正的悬停。鼠标有，手指没有。
+                          所有 :hover 效果都包在它里面，否则触摸浏览器
+                          会把一次点击算成 hover 并**粘住**，
+                          卡片点完一直亮着，看着像"这张选中了"。
+     (pointer: coarse) —— 指针精不精。手指粗，鼠标细。
+                          决定按钮要不要放大。
+
+   为什么不按屏幕宽度判断（@media max-width）：平板横屏 1280 像素比
+   很多笔记本都宽，但一样是手指点，按宽度判断会把它当电脑。
+   反过来，窗口拉窄的桌面浏览器仍然是鼠标，不该被放大。
+
+   触摸目标的经验值是 **44 真实像素**（iOS HIG 和 Material 都是这个数）。
+   HUD 这些是 DOM 按钮，rem 就是真实像素，直接照着调；
+   画布里的建塔位和建造面板不在这儿 —— 它们要乘 Phaser 的缩放比，
+   见 src/scenes/GameScene.js 的 HIT_RADIUS 和 src/game/BuildPanel.js
+   的 ROW_HEIGHT。 */
+@media (pointer: coarse) {
+  button {
+    padding: 0.9rem 1.4rem;
+  }
+
+  .hud-button {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  /* 倍速那两个小按钮是 HUD 里最小的，手指最容易点错。 */
+  .speed-button {
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .menu-item {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  /* 菜单面板跟着变宽，否则放大后的文字会顶到边。 */
+  .menu-panel {
+    min-width: 10.5rem;
+  }
+
+  .settings-sidebar {
+    min-width: 6rem;
+  }
+
+  .settings-tab {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  /* 选章卡片整张都是按钮，本来就够大，
+     加内边距是为了手指落在边缘时也算点中。 */
+  .chapter-card {
+    padding: 1.1rem 1rem;
+  }
+
+  .confirm-button {
+    padding: 0.8rem 0.9rem;
+    font-size: 0.92rem;
+  }
+
+  /* 音量滑块的滑柄放大到 1.5rem。手指按在轨道上滑柄就跳过来，
+      所以关键不是"能不能按到滑柄"，而是拖的时候看不看得见它 ——
+      手指本身就把那一小块盖住了，滑柄大一点，抬手时才知道停在哪。 */
+  .setting-slider::-webkit-slider-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-top: -0.575rem;
+  }
+
+  .setting-slider::-moz-range-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* 轨道跟着加高，给手指一条更好按的带子。 */
+  .setting-slider {
+    height: 2rem;
+  }
+
+  .codex-grid {
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  }
+
+  .codex-item img {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+}
+
+/* ---------- 强制横屏 ---------- */
+
+/* 玩家在竖屏提示里点了"已经横过来了 · 直接进入"之后，
+   整个界面转 90 度摆着 —— 屏幕锁不锁都一样是横的，
+   玩家自然会把手机转过来看。开关由 src/ui/forcedLandscape.js
+   加在 body 上（.is-forced-landscape）。
+
+   **这段 transform 不能随便改**：src/ui/forcedLandscape.js 里给 Phaser
+   打的坐标补丁是照着这个变换反推的（rotate(90deg) + translateY(-100%)，
+   原点左上角）。改了这里点击就会错位，要连那边一起改。
+
+   宽高**对调**：转之前这个盒子是"横着的"（宽 = 视口高、高 = 视口宽），
+   转 90 度之后正好填满竖着的视口。 */
+body.is-forced-landscape {
+  overflow: hidden;
+}
+
+body.is-forced-landscape #app {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  /* 用 vh/vw 而不是 100%：#app 这时是 fixed 的，百分比参照的是视口，
+     宽要拿视口的**高**，只能用 vh。
+     dvh/dvw 优先（地址栏收放时不跳），vh/vw 留作回退。 */
+  width: 100vh;
+  width: 100dvh;
+  height: 100vw;
+  height: 100dvw;
+
+  /* 顺序是从右往左作用的：先 translateY(-100%) 再 rotate(90deg)。
+     translate 用百分比 —— 参照的是元素自己的高（也就是视口宽）。 */
+  transform: rotate(90deg) translateY(-100%);
+  transform-origin: top left;
+}
+
+/* 转过来之后"上"变成了物理左边，安全区那几个方向也跟着转。
+   刘海在竖屏时在物理**上**边，转 90 度之后它出现在界面的**左**边，
+   所以 HUD 的 right/top 要换用另外两个方向的 inset 值。
+
+   这块只是尽力而为 —— 强制横屏本来就是给"转不动屏幕"的人兜底的，
+   刘海的位置在这种情况下已经不重要了，不该为它把布局搞复杂。 */
+body.is-forced-landscape .hud {
+  top: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* 弹框原来是 position: fixed（相对视口），强制横屏后视口坐标系和旋转后的
+   #app 坐标系是脱节的——弹框会跑到完全错误的位置。
+   改成 position: absolute 让它们相对于 #app 定位，和旋转后的坐标系一致。
+   #app 本身是 position: fixed 且填满视口的，所以 absolute 覆盖范围一样。 */
+body.is-forced-landscape .confirm-dialog,
+body.is-forced-landscape .settings-dialog,
+body.is-forced-landscape .route-dialog,
+body.is-forced-landscape .rotate-hint {
+  position: absolute;
+}
+
+/* ---------- 竖屏提示 ---------- */
+
+/* 游戏画布是 960x540 的横向 16:9（见 src/config/game.js），
+   竖屏塞进去只有屏幕三分之一高：十个建塔位挤成一排小点，
+   手指根本分不开。所以竖屏不做布局，直接盖一层"请横过来"。
+
+   显隐**由 JS 加 .is-visible 决定**，不是媒体查询。
+   这儿原来写的是 @media (orientation: portrait) and (pointer: coarse)，
+   真机上会"横过来了提示还在"—— CSS 的 orientation 看不见
+   "手机开了旋转锁定"这回事。完整的原因在 src/ui/rotateHint.js 开头，
+   那里也是现在唯一决定显隐的地方（宽高比 + pointer: coarse 都在 JS 里查）。
+
+   **别在这里再加媒体查询**：两处判定一旦不一致，就会出现
+   JS 认为该显示、CSS 把它按住不显示（或者反过来）的情况，
+   而那个"直接进入"的兜底按钮也会跟着一起失效。 */
+.rotate-hint {
+  display: none;
+}
+
+.rotate-hint.is-visible {
+  position: fixed;
+
+  /* 比 HUD(2)、菜单面板(3)、剧情弹层(20)、确认框(30) 都高：
+     横过来之前不该能操作任何东西，包括那些弹层。 */
+  z-index: 40;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。
+     这个提示层是"横过来才能玩"的闸门，掉出视口等于放行。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+
+  /* 不透明的深底，不是半透明蒙版 —— 底下那半张横着的画面
+     露出来只会让人以为"是不是坏了"。 */
+  background: #020617;
+  text-align: center;
+}
+
+.rotate-panel {
+  width: min(20rem, 100%);
+}
+
+.rotate-panel h3 {
+  margin: 0.75rem 0 0.5rem;
+  color: #67e8f9;
+  font-size: 1.15rem;
+}
+
+.rotate-panel p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+/* 兜底按钮（"已经横过来了 · 直接进入"）。
+   故意做得比标题**低调** —— 它是出口不是主路：先希望玩家真的转屏，
+   转不了的人才用它。所以用描边的深色底，不用界面主色那种亮青色实心。 */
+.rotate-enter {
+  margin-top: 1.4rem;
+
+  /* 0.8rem 不是随手写的：这个按钮**只会**出现在手指设备上
+     （rotateHint.js 查了 pointer: coarse），所以直接照 44 真实像素
+     的触摸目标下限配 —— 0.8rem 上下 + 0.88rem 的字 ≈ 45px。
+     上面 @media (pointer: coarse) 那块管不到它：那里选的是 button，
+     被这条类选择器盖掉了。 */
+  padding: 0.8rem 1.1rem;
+  border: 1px solid rgb(103 232 249 / 45%);
+  border-radius: 0.6rem;
+  background: rgb(30 41 59 / 90%);
+  color: #e2e8f0;
+  font-size: 0.88rem;
+}
+
+.rotate-note {
+  margin-top: 0.8rem;
+
+  /* 比正文再淡一档、再小一号：这是"上面那条路走不通时"才用得上的
+     排查提示，不该和"请把手机横过来"抢注意力。 */
+  color: rgb(148 163 184 / 75%);
+  font-size: 0.78rem;
+}
+
+/* 手机图标来回转 90 度。比一行字直观 —— 小朋友看动作就知道要干什么，
+   不用先把字读完。 */
+.rotate-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+  animation: rotate-nudge 2s ease-in-out infinite;
+}
+
+@keyframes rotate-nudge {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+
+  50%,
+  70% {
+    transform: rotate(-90deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-icon {
+    animation: none;
+
+    /* 不转的话就直接摆成横着的样子 —— 这是提示的重点，
+       比一个立着的手机图标更说明问题。 */
+    transform: rotate(-90deg);
+  }
+}
+
