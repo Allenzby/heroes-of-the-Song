@@ -280,7 +280,7 @@ export class GameScene extends Phaser.Scene {
   // 电脑玩家做了一件事：写在屏幕下方，并在对应的槽位上闪一下。
   //
   // 两个一起做是有意的：文字说"做了什么"，闪光说"在哪儿" ——
-  // 光有文字的话学生得自己在十个位子里找，一节课下来看不了几步。
+  // 光有文字的话得自己在十个位子里找，一节课下来看不了几步。
   onAutoAction(text, slotIndex) {
     if (this.autoText) {
       this.autoText.setText(`🤖 ${text}`);

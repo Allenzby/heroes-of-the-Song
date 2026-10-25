@@ -3,7 +3,7 @@ import { CHAPTERS, CHOICE_AT, getChapter, BIG_CHAPTERS, getChaptersByBigChapter 
 const STORAGE_KEY = 'song-heroes-progress';
 
 // 隐藏的教师模式：网址加 ?unlock=all 就能解锁全部章节，方便课堂上直接演示某一章。
-// 它只影响本次访问的解锁判定，不会写进存档，也不会污染学生的正常进度。
+// 它只影响本次访问的解锁判定，不会写进存档，也不会污染正常进度。
 function readTeacherMode() {
   try {
     return new URLSearchParams(window.location.search).get('unlock') === 'all';
