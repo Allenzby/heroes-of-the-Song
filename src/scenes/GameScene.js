@@ -707,9 +707,9 @@ export class GameScene extends Phaser.Scene {
       const tag = reward.first
         ? (reward.fullHp ? '首次通关 · 满血奖励' : '首次通关')
         : '重复通关';
-      text = `🪙 +${reward.amount} 银两 · ${tag}`;
+      text = `+${reward.amount} 银两 · ${tag}`;
     } else if (reward.capped) {
-      text = '🪙 本关重复奖励已领完';
+      text = '本关重复奖励已领完';
     } else {
       return;
     }

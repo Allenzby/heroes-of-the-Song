@@ -18,7 +18,7 @@ const walletCoinsEl = document.getElementById('wallet-coins');
 const openBtn = document.getElementById('select-shop-button');
 const messageEl = document.getElementById('shop-message');
 
-// 选关页顶部那个「🪙 N 银两」和商铺里的余额都刷一遍。
+// 选关页顶部那个「银 N 银两」和商铺里的余额都刷一遍。
 // 通关回到选关页时也要调（见 chapterSelect.js 的 renderChapterSelect）。
 export function refreshWalletDisplay() {
   const coins = getCoins();
@@ -32,7 +32,7 @@ function buyLabel(item, owned) {
     return '已满';
   }
   const action = item.id === 'revive' || owned === 0 ? '购买' : '升级';
-  return `${action} · 🪙 ${price}`;
+  return `${action} · ${price} 两`;
 }
 
 function renderItems() {
