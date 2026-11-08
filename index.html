@@ -178,6 +178,16 @@
         </header>
 
         <div class="select-actions">
+          <!-- 银两 + 商铺。放这一排的最前面（最靠里侧）——
+               钱是常驻信息，商铺是入口，都比设置/全屏更常用，
+               离右上角远一点也不会被安全区裁掉。 -->
+          <div class="select-wallet">
+            <span class="select-wallet-icon" aria-hidden="true">🪙</span>
+            <span id="wallet-coins" class="select-wallet-amount">0</span>
+            <span class="select-wallet-unit">银两</span>
+            <button id="select-shop-button" type="button"
+                    class="settings-button select-shop-button">商铺</button>
+          </div>
           <a href="https://jielong.com/s/MTUwMjQ1LDMwMDIwMSwxLDE4NDU5MzkzNg==" target="_blank" rel="noopener" class="settings-button settings-link">反馈</a>
           <button id="select-transfer-button" type="button" class="settings-button">存档</button>
           <button id="select-settings-button" type="button" class="settings-button">⚙</button>
@@ -244,6 +254,24 @@
               </div>
             </div>
             <button id="transfer-close" type="button" class="confirm-button">关闭</button>
+          </div>
+        </div>
+        <!-- 商铺弹框。逻辑在 src/ui/shop.js，商品表在 src/data/shopItems.js，
+             银两存档在 src/state/wallet.js。
+
+             商品卡片由 JS 生成，不写死在这里 —— 加一件商品只用改数据表。 -->
+        <div id="shop-dialog" class="shop-dialog" role="dialog" aria-modal="true"
+             aria-labelledby="shop-title" hidden>
+          <div class="shop-panel">
+            <h3 id="shop-title">商铺 · 大宋军需</h3>
+            <p class="shop-balance">🪙 <span id="shop-coins">0</span> 银两</p>
+
+            <div id="shop-items" class="shop-items"></div>
+
+            <p id="shop-message" class="shop-message" role="status"></p>
+            <p class="shop-note">银两只能靠通关获得。关卡里剩下的金币带不走。</p>
+
+            <button id="shop-close" type="button" class="confirm-button">关闭</button>
           </div>
         </div>
       </section>

@@ -1,8 +1,9 @@
 // 存档导入导出功能。
 //
-// 将进度和设置合并成一个 JSON 文件，方便跨设备同步。
+// 将进度、设置和银两钱包合并成一个 JSON 文件，方便跨设备同步。
 const PROGRESS_KEY = 'song-heroes-progress';
 const SETTINGS_KEY = 'song-heroes-settings';
+const WALLET_KEY = 'song-heroes-wallet';
 
 const dialog = document.getElementById('transfer-dialog');
 const closeBtn = document.getElementById('transfer-close');
@@ -14,12 +15,16 @@ const importBtn = document.getElementById('transfer-import');
 function exportSave() {
   const progress = localStorage.getItem(PROGRESS_KEY);
   const settings = localStorage.getItem(SETTINGS_KEY);
+  // 钱包单独一个 key（见 src/state/wallet.js）。老版本导出的文件没有这个字段，
+  // 导入时按「没有钱包」处理，见下面 importSave。
+  const wallet = localStorage.getItem(WALLET_KEY);
 
   const data = {
     version: '1.5.0',
     exportedAt: new Date().toISOString(),
     progress: progress ? JSON.parse(progress) : null,
     settings: settings ? JSON.parse(settings) : null,
+    wallet: wallet ? JSON.parse(wallet) : null,
   };
 
   const json = JSON.stringify(data, null, 2);
@@ -79,6 +84,14 @@ function importSave() {
         }
         if (data.settings) {
           localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
+        }
+        // 有新钱包就整包写入。**老版本导出的存档没有 wallet 字段**，
+        // 这时要删掉本机的钱包 —— 否则会变成「进度退回去了、银两还留着」。
+        // 删掉之后页面刷新，wallet.js 会按新导入的通关记录重新补发首通赏金。
+        if (data.wallet) {
+          localStorage.setItem(WALLET_KEY, JSON.stringify(data.wallet));
+        } else {
+          localStorage.removeItem(WALLET_KEY);
         }
 
         // 刷新页面使存档生效

@@ -12,6 +12,7 @@ import {
   teacherMode,
   getClearedHp,
 } from '../state/progress.js';
+import { refreshWalletDisplay } from './shop.js';
 
 import iceMap from '../../assets/art/ice_map.png';
 import iceMap1 from '../../assets/art/ice_map1.png';
@@ -51,6 +52,9 @@ export function initChapterSelect(handler) {
 
   document.addEventListener('keydown', (e) => {
     if (document.getElementById('select-screen').hidden) return;
+    // 商铺开着的时候左右键归它（面板里可能要横向滚），不要顺手翻章节。
+    const shopDialog = document.getElementById('shop-dialog');
+    if (shopDialog && !shopDialog.hidden) return;
     if (e.key === 'ArrowLeft') navigate(-1);
     if (e.key === 'ArrowRight') navigate(1);
     if (e.key === 'Escape' && currentBigChapter) backToBigChapters();
@@ -76,6 +80,9 @@ function openRouteDialog() {
 export function renderChapterSelect() {
   currentBigChapter = null;
   bigChapterIndex = 0;
+
+  // 每次回到选关页都刷一遍银两 —— 刚打完一关，顶部数字要立刻变。
+  refreshWalletDisplay();
 
   bigChapterView.hidden = false;
   bigChapterView.style.display = '';

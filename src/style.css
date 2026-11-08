@@ -1652,7 +1652,8 @@ body.is-forced-landscape .fullscreen-corner {
 .dialog-open .settings-panel,
 .dialog-open .codex-panel,
 .dialog-open .confirm-panel,
-.dialog-open .route-panel {
+.dialog-open .route-panel,
+.dialog-open .shop-panel {
   animation: panelFlyIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1665,7 +1666,8 @@ body.is-forced-landscape .fullscreen-corner {
 .dialog-closing .settings-panel,
 .dialog-closing .codex-panel,
 .dialog-closing .confirm-panel,
-.dialog-closing .route-panel {
+.dialog-closing .route-panel,
+.dialog-closing .shop-panel {
   animation: panelFlyOut 0.2s ease-out forwards;
 }
 
@@ -2269,6 +2271,244 @@ body.is-forced-landscape .fullscreen-corner {
   width: 100%;
 }
 
+/* ---------- 银两 / 商铺 ---------- */
+
+/* 选关页右上角「🪙 N 银两 [商铺]」。金额用 tabular-nums，
+   数字从 9 跳到 10 时按钮宽度不会抖。 */
+.select-wallet {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.28rem 0.22rem 0.62rem;
+  border: 1px solid rgb(251 191 36 / 35%);
+  border-radius: 0.6rem;
+  background: rgb(15 23 42 / 85%);
+  color: #fde68a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.select-wallet-icon {
+  font-size: 0.95rem;
+}
+
+.select-wallet-amount {
+  color: #fbbf24;
+  font-variant-numeric: tabular-nums;
+}
+
+.select-wallet-unit {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.select-shop-button {
+  padding: 0.28rem 0.55rem;
+  border-color: rgb(103 232 249 / 45%);
+  color: #67e8f9;
+  font-size: 0.78rem;
+}
+
+/* 手机宽度：先砍掉「银两」两个字，钱和商铺按钮都留着。
+   再窄就靠 .select-actions 自己换行，不隐藏入口。 */
+@media (max-width: 640px) {
+  .select-wallet-unit {
+    display: none;
+  }
+
+  .select-wallet {
+    gap: 0.25rem;
+    padding-left: 0.5rem;
+  }
+
+  .select-actions {
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 78vw;
+  }
+}
+
+/* z-index 和设置弹框一样是 30：两者不会同时打开。
+   竖屏提示是 40，仍然压在它上面。 */
+.shop-dialog {
+  position: fixed;
+  z-index: 30;
+
+  /* inset 的 longhand 回退，说明见 .particles 那处。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(2 6 23 / 78%);
+}
+
+.shop-dialog[hidden] {
+  display: none;
+}
+
+.shop-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(38rem, 100%);
+  max-height: 88vh;
+  padding: 1.4rem;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: 1rem;
+  background: #0f172a;
+  box-shadow: 0 1rem 2rem rgb(2 6 23 / 55%);
+}
+
+.shop-panel h3 {
+  margin: 0 0 0.35rem;
+  color: #67e8f9;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.shop-balance {
+  margin: 0 0 0.9rem;
+  color: #fbbf24;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  padding: 0.15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.8rem;
+  border: 1px solid rgb(103 232 249 / 22%);
+  border-radius: 0.7rem;
+  background: rgb(30 41 59 / 60%);
+}
+
+.shop-card.is-maxed {
+  border-color: rgb(148 163 184 / 18%);
+  background: rgb(30 41 59 / 30%);
+}
+
+.shop-card.is-poor {
+  border-color: rgb(148 163 184 / 18%);
+}
+
+.shop-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.shop-card-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.shop-card-name {
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.shop-card-desc {
+  flex: 1;
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.shop-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.shop-card-level {
+  color: #64748b;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.shop-buy {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgb(103 232 249 / 45%);
+  border-radius: 0.5rem;
+  background: rgb(8 47 73 / 80%);
+  color: #67e8f9;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+@media (hover: hover) {
+  .shop-buy:hover:not(:disabled) {
+    border-color: #67e8f9;
+    background: rgb(14 116 144 / 45%);
+  }
+}
+
+.shop-buy:disabled {
+  border-color: rgb(148 163 184 / 25%);
+  background: rgb(30 41 59 / 60%);
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* min-height 占住一行：买完之后冒出一句话，面板不会整体往上跳。 */
+.shop-message {
+  min-height: 1.15em;
+  margin: 0.55rem 0 0;
+  color: #67e8f9;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.shop-message.is-error {
+  color: #f87171;
+}
+
+.shop-note {
+  margin: 0.35rem 0 1rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.shop-panel .confirm-button {
+  width: 100%;
+}
+
+/* 窄屏单列，卡片高一点也好点中。 */
+@media (max-width: 560px) {
+  .shop-items {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-panel {
+    padding: 1.1rem;
+  }
+}
+
 /* ---------- 通用确认弹框 ---------- */
 
 /* z-index 要比 HUD（2）和菜单面板（3）都高，否则会被右上角那排按钮压住。
@@ -2648,6 +2888,7 @@ body.is-forced-landscape .hud {
    #app 本身是 position: fixed 且填满视口的，所以 absolute 覆盖范围一样。 */
 body.is-forced-landscape .confirm-dialog,
 body.is-forced-landscape .settings-dialog,
+body.is-forced-landscape .shop-dialog,
 body.is-forced-landscape .route-dialog,
 body.is-forced-landscape .rotate-hint {
   position: absolute;

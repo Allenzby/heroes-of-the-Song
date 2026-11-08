@@ -4,6 +4,7 @@ import { initChapterSelect, renderChapterSelect, backToBigChapters } from './ui/
 import { initRotateHint } from './ui/rotateHint.js';
 import { attachForcedLandscape } from './ui/forcedLandscape.js';
 import { markCleared } from './state/progress.js';
+import { recordClear } from './state/wallet.js';
 import { setMenuHandlers } from './ui/hud.js';
 import { showSettings } from './ui/settingsDialog.js';
 import { stopBgm, playUiClick } from './game/sfx.js';
@@ -11,6 +12,7 @@ import { cachedVisitorCount, hitVisitorCount } from './ui/visitorCounter.js';
 import { hideTutorial } from './ui/tutorial.js';
 import { showCodex } from './ui/codex.js';
 import { showTransferDialog } from './ui/transfer.js';
+import { initShop } from './ui/shop.js';
 // 全屏按钮（首页 / 选关页 / 关卡 HUD 各一个，共用一份逻辑）。
 // 必须在 main 里 import：hud.js 只负责关卡那一个，
 // 另外两个按钮在 HUD 加载前就已经存在于 DOM。
@@ -199,13 +201,21 @@ function retryChapter() {
 }
 
 // 通关时记录进度，解锁下一章。由 GameScene 通过 registry 调用。
-function completeCurrentChapter(hp) {
-  if (currentChapter) {
-    markCleared(currentChapter.id, hp);
-  }
+// maxHp 是这一关实际的开局血量（含商铺买的加固城防），
+// 用来判断「满血通关」—— 不能拿 levels.js 的基准血量比，
+// 否则买了城防的玩家永远拿不到满血奖励。
+function completeCurrentChapter(hp, maxHp) {
+  if (!currentChapter) return null;
+
+  // 先结算银两，再记通关。顺序其实不敏感 —— wallet.js 自己维护 firstClear，
+  // 不看 progress 的 cleared —— 但保持「结算 → 记账」读起来更顺。
+  const result = recordClear(currentChapter.id, hp, maxHp);
+  markCleared(currentChapter.id, hp);
+  return result;
 }
 
 initChapterSelect(enterChapter);
+initShop();
 setMenuHandlers({ onRetry: retryChapter, onBack: () => showSelectScreen(true) });
 
 // 竖屏提示。要在这里初始化 —— 它自己会挂 resize / orientationchange 监听，

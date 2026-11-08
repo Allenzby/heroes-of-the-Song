@@ -12,6 +12,7 @@ import { getLevel } from '../data/levels.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { CHAPTERS } from '../data/chapters.js';
 import { teacherMode, autoMode } from '../state/progress.js';
+import { getRunModifiers, consumeRevive } from '../state/wallet.js';
 import { addKills, addPlayTime, addRebuild, addGamePlayed, addWavesCleared } from '../state/stats.js';
 import { attachHud, enableHud, detachHud, setGold, pulseGold, setWave, hideWave } from '../ui/hud.js';
 import {
@@ -23,6 +24,10 @@ import {
 const ZONE_PATH = 'path';
 const ZONE_BUILD = 'build';
 const ZONE_BLOCKED = 'blocked';
+
+// 免死金牌救回来的血量。写在这里而不是从商品表读：
+// 商品表说的是「有这个道具」，具体数值是关卡规则，改数值只该动这一处。
+const REVIVE_HP = 3;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -105,7 +110,15 @@ export class GameScene extends Phaser.Scene {
       this.label.setText(`${Math.round(pointer.x)}, ${Math.round(pointer.y)}  →  ${this.describe(zone)}`);
     });
 
-    this.lives = this.level.lives;
+    // 商铺买的增益只在这里叠加，**绝不回写 levels.js**。
+    // levels.js 里的 gold / lives 是关卡基准值，也是难度曲线的依据；
+    // 被玩家等级污染之后，以后调平衡就说不清「基准到底是多少」了。
+    const mods = getRunModifiers();
+
+    this.lives = this.level.lives + mods.lives;
+    // 满血通关奖励按「这一局实际的开局血量」算，不是基准血量 ——
+    // 否则买了加固城防的玩家永远差那么几点血，拿不到满血奖励。
+    this.maxLives = this.lives;
     this.firstEnemyKilled = false;
     this.markDefenseLine(canvasPath);
 
@@ -115,11 +128,16 @@ export class GameScene extends Phaser.Scene {
     // 金币显示在 HUD 那排按钮旁边（DOM，见 index.html 的 #gold-display），
     // 不画在画布上 —— 右上角被 HUD 压着，画上去会被按钮遮住。
     this.towers = new TowerManager(this, {
-      gold: this.level.gold,
+      gold: this.level.gold + mods.gold,
       getEnemies: () => (this.waves ? this.waves.enemies : []),
       onGoldChange: (gold) => setGold(gold),
     });
     setGold(this.towers.gold);
+
+    // 免死金牌：库存 > 0 时这一关能救一次。
+    // 一关只触发一次，所以用 reviveUsed 单独记 —— 触发时还会从钱包里扣一张。
+    this.reviveAvailable = mods.revive > 0;
+    this.reviveUsed = false;
 
     this.buildPanel = new BuildPanel(this, {
       // 哪些武将这一关能用。花荣要第一章、时迁要第二章 ——
@@ -381,8 +399,48 @@ export class GameScene extends Phaser.Scene {
     });
 
     if (this.lives === 0) {
+      // 免死金牌：还有库存、且这一关没触发过，就自动救回 3 点。
+      //
+      // reviveUsed 防的是同一帧漏两个兵 —— onLeak 会连着调两次，
+      // 不挡的话一次漏两个会一口气烧掉两张金牌。
+      if (this.reviveAvailable && !this.reviveUsed) {
+        this.reviveUsed = true;
+        this.reviveAvailable = false;
+        consumeRevive();
+
+        this.lives = REVIVE_HP;
+        if (this.defenseLine) {
+          this.defenseLine.setHp(this.lives);
+        }
+        this.showReviveNotice();
+        return;
+      }
+
       this.onLevelFailed();
     }
+  }
+
+  // 免死金牌触发时在屏幕中央飘一行字。放在横幅再上一点，
+  // 不和防线标记、HUD 抢位置。
+  showReviveNotice() {
+    const { width, height } = this.scale;
+    const text = this.add.text(width / 2, height / 2 - 120, '🏅 免死金牌生效 · 防线恢复 3 点', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '26px',
+      fontStyle: 'bold',
+      color: '#fde68a',
+      stroke: '#451a03',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(41);
+
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      y: text.y - 34,
+      delay: 900,
+      duration: 500,
+      onComplete: () => text.destroy(),
+    });
   }
 
   onLevelClear() {
@@ -421,12 +479,13 @@ export class GameScene extends Phaser.Scene {
     // 什么时候离开由玩家点按钮或倒计时决定，所以进度必须在这里就记，
     // 不能等离开的时候再记 —— 玩家可能直接从菜单退出去。
     const onClear = this.registry.get('onChapterClear');
-    if (onClear) {
-      onClear(this.lives);
-    }
+    // 返回值是银两结算结果（见 src/state/wallet.js 的 recordClear）。
+    // 没注册回调时（单独跑场景调试）就当这一关没有赏金。
+    const reward = onClear ? onClear(this.lives, this.maxLives) : null;
 
     // 标题往上挪一点，给底下的返回按钮腾位置。
     this.showBanner('胜利了！', 0xfbbf24, -46);
+    this.showRewardLine(reward);
 
     // 面板还开着的话收掉，横幅底下压着个建造面板很奇怪。
     if (this.buildPanel) {
@@ -633,6 +692,37 @@ export class GameScene extends Phaser.Scene {
     // 时间太短会像是被系统赶出去。想重打的人本来就会直接开菜单。
     // 失守界面不开赞助条：那会儿玩家正懊恼，弹"请作者喝咖啡"像在要钱。
     this.showSelectButton(14);
+  }
+
+  // 通关横幅下面的银两结算行。摆在标题和「返回选关」按钮之间
+  // （标题中心 -46，按钮中心 +58，这行放 +10 正好不挤）。
+  //
+  // 教师在 ?unlock=all、自动演练 /auto 都不结算 —— wallet.js 里已经拦了，
+  // 这里拿到 skipped 就什么都不画。
+  showRewardLine(reward) {
+    if (!reward || reward.skipped) return;
+
+    let text;
+    if (reward.amount > 0) {
+      const tag = reward.first
+        ? (reward.fullHp ? '首次通关 · 满血奖励' : '首次通关')
+        : '重复通关';
+      text = `🪙 +${reward.amount} 银两 · ${tag}`;
+    } else if (reward.capped) {
+      text = '🪙 本关重复奖励已领完';
+    } else {
+      return;
+    }
+
+    const { width, height } = this.scale;
+    this.add.text(width / 2, height / 2 + 10, text, {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '20px',
+      fontStyle: 'bold',
+      color: '#fde68a',
+      stroke: '#451a03',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(46);
   }
 
   // 通关/失守的大字。offsetY 用来给底下的按钮腾位置。
